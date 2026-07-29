@@ -14,6 +14,8 @@ final class SpriteView: NSView {
     var onClick: (() -> Void)?
 
     private static let maxFramesPerPlay = 120
+    /// Multiplier on each frame's authored duration; <1 plays faster.
+    private static let speedMultiplier = 0.5
 
     init(agent: AgentData, sheet: CGImage) {
         self.agent = agent
@@ -64,7 +66,8 @@ final class SpriteView: NSView {
             self?.step(name: name, frames: frames, index: index + 1, completion: completion)
         }
         pendingStep = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + frames[index].duration / 1000, execute: work)
+        let delay = frames[index].duration / 1000 * Self.speedMultiplier
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
     }
 
     private func show(frame: AgentData.Frame, of name: String, at index: Int) {

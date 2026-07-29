@@ -9,6 +9,11 @@ final class BubbleView: NSView {
 
     override init(frame: NSRect) {
         super.init(frame: frame)
+        // The bubble is always painted a fixed light yellow (see draw(_:)),
+        // so force light-appearance rendering regardless of system Dark Mode —
+        // otherwise labelColor/button styling resolve to their dark variants
+        // and become unreadable against this always-light background.
+        appearance = NSAppearance(named: .aqua)
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 6
@@ -31,6 +36,7 @@ final class BubbleView: NSView {
 
         let title = NSTextField(labelWithString: announcement.title)
         title.font = .boldSystemFont(ofSize: 13)
+        title.textColor = .black
         title.maximumNumberOfLines = 2
         stack.addArrangedSubview(title)
 
