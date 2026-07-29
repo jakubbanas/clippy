@@ -4,14 +4,17 @@ import Foundation
 /// Missing keys fall back to defaults, so partial config files are fine.
 struct AppConfig: Codable {
     var calendar: CalendarConfig
+    var quickCapture: QuickCaptureConfig
 
-    init(calendar: CalendarConfig = CalendarConfig()) {
+    init(calendar: CalendarConfig = CalendarConfig(), quickCapture: QuickCaptureConfig = QuickCaptureConfig()) {
         self.calendar = calendar
+        self.quickCapture = quickCapture
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         calendar = try container.decodeIfPresent(CalendarConfig.self, forKey: .calendar) ?? CalendarConfig()
+        quickCapture = try container.decodeIfPresent(QuickCaptureConfig.self, forKey: .quickCapture) ?? QuickCaptureConfig()
     }
 }
 
@@ -33,6 +36,27 @@ struct CalendarConfig: Codable {
         enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
         leadMinutes = try container.decodeIfPresent([Double].self, forKey: .leadMinutes) ?? [1, 0]
         calendars = try container.decodeIfPresent([String].self, forKey: .calendars)
+    }
+}
+
+struct QuickCaptureConfig: Codable {
+    var enabled: Bool
+    /// Global hotkey that opens the capture panel, e.g. "⌥Space" or "cmd shift r".
+    var hotkey: String
+    /// Minutes the Snooze action bumps a fired reminder forward.
+    var snoozeMinutes: Double
+
+    init(enabled: Bool = true, hotkey: String = "⌥Space", snoozeMinutes: Double = 10) {
+        self.enabled = enabled
+        self.hotkey = hotkey
+        self.snoozeMinutes = snoozeMinutes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+        hotkey = try container.decodeIfPresent(String.self, forKey: .hotkey) ?? "⌥Space"
+        snoozeMinutes = try container.decodeIfPresent(Double.self, forKey: .snoozeMinutes) ?? 10
     }
 }
 

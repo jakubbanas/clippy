@@ -27,4 +27,18 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(config.calendar.leadMinutes, [2, 0])
         XCTAssertEqual(config.calendar.calendars, ["Work"])
     }
+
+    func testQuickCaptureDefaults() throws {
+        let config = try decode("{}")
+        XCTAssertTrue(config.quickCapture.enabled)
+        XCTAssertEqual(config.quickCapture.hotkey, "⌥Space")
+        XCTAssertEqual(config.quickCapture.snoozeMinutes, 10)
+    }
+
+    func testPartialQuickCaptureKeepsDefaults() throws {
+        let config = try decode(#"{ "quick_capture": { "hotkey": "cmd shift r" } }"#)
+        XCTAssertEqual(config.quickCapture.hotkey, "cmd shift r")
+        XCTAssertTrue(config.quickCapture.enabled)
+        XCTAssertEqual(config.quickCapture.snoozeMinutes, 10)
+    }
 }

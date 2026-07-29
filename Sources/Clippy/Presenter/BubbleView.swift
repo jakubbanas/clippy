@@ -55,10 +55,21 @@ final class BubbleView: NSView {
                 let button = NSButton(title: action.label, target: self, action: #selector(buttonPressed(_:)))
                 button.bezelStyle = .rounded
                 button.controlSize = .small
+                button.bezelColor = Self.bezelColor(for: action.kind)
                 button.tag = index
                 buttons.addArrangedSubview(button)
             }
             stack.addArrangedSubview(buttons)
+        }
+    }
+
+    /// Tints each action button by kind so they're distinguishable at a glance.
+    private static func bezelColor(for kind: AnnouncementAction.Kind) -> NSColor {
+        switch kind {
+        case .openURL: return .systemGreen
+        case .snooze: return .systemYellow
+        case .dismiss: return .systemRed
+        case .callback: return .systemBlue
         }
     }
 
