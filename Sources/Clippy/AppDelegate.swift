@@ -1,10 +1,12 @@
 import AppKit
+import ServiceManagement
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var presenter: Presenter!
     private var announcer: Announcer!
     private var features: [Feature] = []
+    private var loginItem: NSMenuItem!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -23,7 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         setUpStatusItem()
 
-        let context = FeatureContext(announcer: announcer)
+        let context = FeatureContext(announcer: announcer, config: ConfigStore.load())
         features = Registry.builtInFeatures()
         for feature in features {
             feature.start(context: context)
@@ -42,8 +44,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dumpItem.target = self
         menu.addItem(dumpItem)
         menu.addItem(.separator())
+        let configItem = NSMenuItem(title: "Open Config (relaunch to apply)", action: #selector(openConfig), keyEquivalent: "")
+        configItem.target = self
+        menu.addItem(configItem)
+        loginItem = NSMenuItem(title: "Start at Login", action: #selector(toggleLoginItem), keyEquivalent: "")
+        loginItem.target = self
+        loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        menu.addItem(loginItem)
+        menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Clippy", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
+    }
+
+    @objc private func openConfig() {
+        _ = ConfigStore.load() // ensures the file exists before opening
+        NSWorkspace.shared.open(ConfigStore.url)
+    }
+
+    @objc private func toggleLoginItem() {
+        let service = SMAppService.mainApp
+        do {
+            if service.status == .enabled {
+                try service.unregister()
+            } else {
+                try service.register()
+            }
+        } catch {
+            NSLog("Login item toggle failed: \(error)")
+        }
+        loginItem.state = service.status == .enabled ? .on : .off
     }
 
     @objc private func dumpNextEvents() {

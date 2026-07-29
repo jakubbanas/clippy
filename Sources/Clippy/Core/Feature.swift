@@ -12,6 +12,7 @@ protocol Feature {
 
 struct FeatureContext {
     let announcer: Announcer
+    let config: AppConfig
 }
 
 /// Thread-safe handle features use to request a Clippy appearance.

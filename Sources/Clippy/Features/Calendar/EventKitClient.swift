@@ -34,13 +34,4 @@ final class EventKitClient {
         let predicate = store.predicateForEvents(withStart: from, end: to, calendars: calendars)
         return store.events(matching: predicate).map(EventInfo.init)
     }
-
-    /// Fires whenever the event store's contents change (any calendar edit).
-    func onStoreChanged(_ handler: @escaping () -> Void) -> NSObjectProtocol {
-        NotificationCenter.default.addObserver(
-            forName: .EKEventStoreChanged,
-            object: store,
-            queue: .main
-        ) { _ in handler() }
-    }
 }
