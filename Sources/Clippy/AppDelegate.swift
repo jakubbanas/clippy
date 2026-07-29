@@ -48,9 +48,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let testItem = NSMenuItem(title: "Test Clippy", action: #selector(testClippy), keyEquivalent: "t")
         testItem.target = self
         menu.addItem(testItem)
-        let dumpItem = NSMenuItem(title: "Dump Next Events", action: #selector(dumpNextEvents), keyEquivalent: "")
-        dumpItem.target = self
-        menu.addItem(dumpItem)
         menu.addItem(.separator())
         let configItem = NSMenuItem(title: "Open Config", action: #selector(openConfig), keyEquivalent: "")
         configItem.target = self
@@ -88,24 +85,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("Login item toggle failed: \(error)")
         }
         loginItem.state = service.status == .enabled ? .on : .off
-    }
-
-    @objc private func dumpNextEvents() {
-        Task {
-            let client = EventKitClient()
-            do {
-                try await client.requestAccess()
-                let now = Date()
-                let events = client.events(from: now, to: now.addingTimeInterval(24 * 3600))
-                NSLog("=== \(events.count) events in next 24h ===")
-                for event in events {
-                    let link = MeetingLinks.extract(from: event)?.absoluteString ?? "-"
-                    NSLog("[\(event.calendarTitle)] \(event.start) \(event.title) allDay=\(event.isAllDay) declined=\(event.isDeclined) link=\(link)")
-                }
-            } catch {
-                NSLog("Calendar access failed: \(error)")
-            }
-        }
     }
 
     @objc private func testClippy() {
