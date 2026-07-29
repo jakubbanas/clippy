@@ -10,10 +10,7 @@ final class ClippyWindow {
     private let sprite: SpriteView
     private let bubble = BubbleView()
 
-    var onAction: ((AnnouncementAction.Kind) -> Void)? {
-        get { bubble.onAction }
-        set { bubble.onAction = newValue }
-    }
+    var onAction: ((AnnouncementAction.Kind) -> Void)?
 
     init(agent: AgentData, sheet: CGImage) {
         sprite = SpriteView(agent: agent, sheet: sheet)
@@ -48,6 +45,9 @@ final class ClippyWindow {
             bubble.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -8),
             bubble.bottomAnchor.constraint(equalTo: sprite.topAnchor, constant: -10),
         ])
+
+        bubble.onAction = { [weak self] kind in self?.onAction?(kind) }
+        sprite.onClick = { [weak self] in self?.onAction?(.dismiss) }
     }
 
     /// Slides in, plays the announcement's animation, leaves the bubble up.
