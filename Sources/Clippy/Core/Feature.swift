@@ -10,6 +10,13 @@ protocol Feature {
     func start(context: FeatureContext)
     /// Cancels background work started by `start`. No-op if not running.
     func stop()
+    /// User-triggerable actions this feature contributes to the command launcher.
+    /// Call after `start(context:)`. Defaults to none.
+    func commands() -> [Command]
+}
+
+extension Feature {
+    func commands() -> [Command] { [] }
 }
 
 struct FeatureContext {

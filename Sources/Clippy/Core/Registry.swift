@@ -4,7 +4,8 @@ enum Registry {
         return [
             CalendarFeature(),
             QuickCaptureFeature(),
-            NudgesFeature()
+            NudgesFeature(),
+            FocusSessionFeature()
         ]
     }
 }

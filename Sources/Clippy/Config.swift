@@ -6,15 +6,21 @@ struct AppConfig: Codable {
     var calendar: CalendarConfig
     var quickCapture: QuickCaptureConfig
     var nudges: [NudgeConfig]
+    var focus: FocusConfig
+    var launcher: LauncherConfig
 
     init(
         calendar: CalendarConfig = CalendarConfig(),
         quickCapture: QuickCaptureConfig = QuickCaptureConfig(),
-        nudges: [NudgeConfig] = NudgeConfig.defaults
+        nudges: [NudgeConfig] = NudgeConfig.defaults,
+        focus: FocusConfig = FocusConfig(),
+        launcher: LauncherConfig = LauncherConfig()
     ) {
         self.calendar = calendar
         self.quickCapture = quickCapture
         self.nudges = nudges
+        self.focus = focus
+        self.launcher = launcher
     }
 
     init(from decoder: Decoder) throws {
@@ -22,6 +28,8 @@ struct AppConfig: Codable {
         calendar = try container.decodeIfPresent(CalendarConfig.self, forKey: .calendar) ?? CalendarConfig()
         quickCapture = try container.decodeIfPresent(QuickCaptureConfig.self, forKey: .quickCapture) ?? QuickCaptureConfig()
         nudges = try container.decodeIfPresent([NudgeConfig].self, forKey: .nudges) ?? NudgeConfig.defaults
+        focus = try container.decodeIfPresent(FocusConfig.self, forKey: .focus) ?? FocusConfig()
+        launcher = try container.decodeIfPresent(LauncherConfig.self, forKey: .launcher) ?? LauncherConfig()
     }
 }
 
@@ -48,22 +56,32 @@ struct CalendarConfig: Codable {
 
 struct QuickCaptureConfig: Codable {
     var enabled: Bool
-    /// Global hotkey that opens the capture panel, e.g. "⌥Space" or "cmd shift r".
-    var hotkey: String
     /// Minutes the Snooze action bumps a fired reminder forward.
     var snoozeMinutes: Double
 
-    init(enabled: Bool = true, hotkey: String = "⌥Space", snoozeMinutes: Double = 10) {
+    init(enabled: Bool = true, snoozeMinutes: Double = 10) {
         self.enabled = enabled
-        self.hotkey = hotkey
         self.snoozeMinutes = snoozeMinutes
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
-        hotkey = try container.decodeIfPresent(String.self, forKey: .hotkey) ?? "⌥Space"
         snoozeMinutes = try container.decodeIfPresent(Double.self, forKey: .snoozeMinutes) ?? 10
+    }
+}
+
+/// The single hotkey that opens the command launcher menu.
+struct LauncherConfig: Codable {
+    var hotkey: String
+
+    init(hotkey: String = "⌥Space") {
+        self.hotkey = hotkey
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        hotkey = try container.decodeIfPresent(String.self, forKey: .hotkey) ?? "⌥Space"
     }
 }
 
@@ -93,6 +111,30 @@ struct NudgeConfig: Codable, Equatable {
         enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
         everyMinutes = try container.decodeIfPresent(Double.self, forKey: .everyMinutes) ?? 60
         message = try container.decodeIfPresent(String.self, forKey: .message) ?? "Time for a nudge!"
+    }
+}
+
+/// A body-doubling focus session: declare a goal, work a timed block, get a
+/// check-out prompt at the end.
+struct FocusConfig: Codable {
+    var enabled: Bool
+    /// Pre-filled block length in the start panel.
+    var defaultMinutes: Double
+    /// Pop a gentle "still on it?" at the halfway point (only for blocks ≥ 20 min).
+    /// Off by default — a mid-block interruption works against the silent-focus point.
+    var midCheckIn: Bool
+
+    init(enabled: Bool = true, defaultMinutes: Double = 25, midCheckIn: Bool = false) {
+        self.enabled = enabled
+        self.defaultMinutes = defaultMinutes
+        self.midCheckIn = midCheckIn
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+        defaultMinutes = try container.decodeIfPresent(Double.self, forKey: .defaultMinutes) ?? 25
+        midCheckIn = try container.decodeIfPresent(Bool.self, forKey: .midCheckIn) ?? false
     }
 }
 

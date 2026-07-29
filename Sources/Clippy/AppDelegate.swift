@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var presenter: Presenter!
     private var announcer: Announcer!
     private var features: [Feature] = []
+    private let launcher = CommandLauncher()
     private var loginItem: NSMenuItem!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -29,13 +30,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func startFeatures() {
-        let context = FeatureContext(announcer: announcer, config: ConfigStore.load())
+        let config = ConfigStore.load()
+        let context = FeatureContext(announcer: announcer, config: config)
         for feature in features {
             feature.start(context: context)
         }
+        launcher.configure(hotkey: config.launcher.hotkey, commands: features.flatMap { $0.commands() })
     }
 
     private func reloadFeatures() {
+        launcher.stop()
         features.forEach { $0.stop() }
         startFeatures()
     }

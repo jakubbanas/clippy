@@ -31,15 +31,18 @@ final class ConfigTests: XCTestCase {
     func testQuickCaptureDefaults() throws {
         let config = try decode("{}")
         XCTAssertTrue(config.quickCapture.enabled)
-        XCTAssertEqual(config.quickCapture.hotkey, "⌥Space")
         XCTAssertEqual(config.quickCapture.snoozeMinutes, 10)
     }
 
     func testPartialQuickCaptureKeepsDefaults() throws {
-        let config = try decode(#"{ "quick_capture": { "hotkey": "cmd shift r" } }"#)
-        XCTAssertEqual(config.quickCapture.hotkey, "cmd shift r")
+        let config = try decode(#"{ "quick_capture": { "snooze_minutes": 5 } }"#)
+        XCTAssertEqual(config.quickCapture.snoozeMinutes, 5)
         XCTAssertTrue(config.quickCapture.enabled)
-        XCTAssertEqual(config.quickCapture.snoozeMinutes, 10)
+    }
+
+    func testLauncherDefaultsAndOverride() throws {
+        XCTAssertEqual(try decode("{}").launcher.hotkey, "⌥Space")
+        XCTAssertEqual(try decode(#"{ "launcher": { "hotkey": "cmd shift space" } }"#).launcher.hotkey, "cmd shift space")
     }
 
     func testNudgesDefaultToWaterAndBreaks() throws {
@@ -60,5 +63,19 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(config.nudges[0].everyMinutes, 60)
         XCTAssertEqual(config.nudges[0].message, "Time for a nudge!")
         XCTAssertFalse(config.nudges[0].enabled)
+    }
+
+    func testFocusDefaults() throws {
+        let config = try decode("{}")
+        XCTAssertTrue(config.focus.enabled)
+        XCTAssertEqual(config.focus.defaultMinutes, 25)
+        XCTAssertFalse(config.focus.midCheckIn)
+    }
+
+    func testPartialFocusKeepsDefaults() throws {
+        let config = try decode(#"{ "focus": { "default_minutes": 50, "mid_check_in": true } }"#)
+        XCTAssertEqual(config.focus.defaultMinutes, 50)
+        XCTAssertTrue(config.focus.midCheckIn)
+        XCTAssertTrue(config.focus.enabled)
     }
 }
