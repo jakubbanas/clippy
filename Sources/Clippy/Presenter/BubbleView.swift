@@ -52,10 +52,15 @@ final class BubbleView: NSView {
             buttons.orientation = .horizontal
             buttons.spacing = 8
             for (index, action) in announcement.actions.enumerated() {
-                let button = NSButton(title: action.label, target: self, action: #selector(buttonPressed(_:)))
-                button.bezelStyle = .rounded
-                button.controlSize = .small
-                button.bezelColor = Self.bezelColor(for: action.kind)
+                let button = PillButton(title: action.label, target: self, action: #selector(buttonPressed(_:)))
+                button.isBordered = false
+                button.wantsLayer = true
+                button.layer?.backgroundColor = Self.color(for: action.kind).cgColor
+                button.layer?.cornerRadius = 6
+                button.attributedTitle = NSAttributedString(string: action.label, attributes: [
+                    .foregroundColor: NSColor.white,
+                    .font: NSFont.boldSystemFont(ofSize: 11),
+                ])
                 button.tag = index
                 buttons.addArrangedSubview(button)
             }
@@ -63,13 +68,24 @@ final class BubbleView: NSView {
         }
     }
 
-    /// Tints each action button by kind so they're distinguishable at a glance.
-    private static func bezelColor(for kind: AnnouncementAction.Kind) -> NSColor {
+    /// Colors each action button by kind so they're distinguishable at a glance.
+    private static func color(for kind: AnnouncementAction.Kind) -> NSColor {
         switch kind {
         case .openURL: return .systemGreen
-        case .snooze: return .systemYellow
+        case .snooze: return .systemOrange
         case .dismiss: return .systemRed
         case .callback: return .systemBlue
+        }
+    }
+
+    /// Borderless button whose colored layer background needs a little breathing room,
+    /// since `isBordered = false` otherwise makes the title hug its edges.
+    private final class PillButton: NSButton {
+        override var intrinsicContentSize: NSSize {
+            var size = super.intrinsicContentSize
+            size.width += 22
+            size.height = 22
+            return size
         }
     }
 
