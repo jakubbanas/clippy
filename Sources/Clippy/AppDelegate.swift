@@ -24,12 +24,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         setUpStatusItem()
-
-        let context = FeatureContext(announcer: announcer, config: ConfigStore.load())
         features = Registry.builtInFeatures()
+        startFeatures()
+    }
+
+    private func startFeatures() {
+        let context = FeatureContext(announcer: announcer, config: ConfigStore.load())
         for feature in features {
             feature.start(context: context)
         }
+    }
+
+    private func reloadFeatures() {
+        features.forEach { $0.stop() }
+        startFeatures()
     }
 
     private func setUpStatusItem() {
@@ -44,9 +52,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         dumpItem.target = self
         menu.addItem(dumpItem)
         menu.addItem(.separator())
-        let configItem = NSMenuItem(title: "Open Config (relaunch to apply)", action: #selector(openConfig), keyEquivalent: "")
+        let configItem = NSMenuItem(title: "Open Config", action: #selector(openConfig), keyEquivalent: "")
         configItem.target = self
         menu.addItem(configItem)
+        let reloadItem = NSMenuItem(title: "Reload Config", action: #selector(reloadConfig), keyEquivalent: "")
+        reloadItem.target = self
+        menu.addItem(reloadItem)
         loginItem = NSMenuItem(title: "Start at Login", action: #selector(toggleLoginItem), keyEquivalent: "")
         loginItem.target = self
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
@@ -59,6 +70,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func openConfig() {
         _ = ConfigStore.load() // ensures the file exists before opening
         NSWorkspace.shared.open(ConfigStore.url)
+    }
+
+    @objc private func reloadConfig() {
+        reloadFeatures()
     }
 
     @objc private func toggleLoginItem() {

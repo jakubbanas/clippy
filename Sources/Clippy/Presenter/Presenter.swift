@@ -47,6 +47,8 @@ final class Presenter {
                     self?.enqueue(announcement)
                 }
             }
+        case .callback(let action):
+            action()
         }
         dismissCurrent()
     }

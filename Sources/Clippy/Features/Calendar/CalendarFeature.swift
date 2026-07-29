@@ -20,12 +20,20 @@ final class CalendarFeature: Feature {
 
     /// Reminder key → event start (kept so pruning is possible).
     private var fired: [String: Date] = [:]
+    private var task: Task<Void, Never>?
 
     func start(context: FeatureContext) {
+        guard task == nil else { return }
         guard context.config.calendar.enabled else { return }
         leadTimes = context.config.calendar.leadMinutes.map { $0 * 60 }
         calendarTitles = context.config.calendar.calendars
-        Task { await run(context) }
+        fired = [:]
+        task = Task { await run(context) }
+    }
+
+    func stop() {
+        task?.cancel()
+        task = nil
     }
 
     private func run(_ context: FeatureContext) async {

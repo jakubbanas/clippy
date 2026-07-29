@@ -6,8 +6,10 @@ import Foundation
 protocol Feature {
     var id: String { get }
     var name: String { get }
-    /// Called once at startup. The feature owns its own loop/tasks.
+    /// Spawns the feature's background work. Safe to call again after `stop()`.
     func start(context: FeatureContext)
+    /// Cancels background work started by `start`. No-op if not running.
+    func stop()
 }
 
 struct FeatureContext {

@@ -23,5 +23,8 @@ struct AnnouncementAction {
         case openURL(URL)
         case dismiss
         case snooze(TimeInterval)
+        /// Feature-specific behavior. Runs on the main thread, then dismisses
+        /// like every other action — features don't control dismissal timing.
+        case callback(() -> Void)
     }
 }
