@@ -3,7 +3,8 @@ enum Registry {
     static func builtInFeatures() -> [Feature] {
         return [
             CalendarFeature(),
-            QuickCaptureFeature()
+            QuickCaptureFeature(),
+            NudgesFeature()
         ]
     }
 }

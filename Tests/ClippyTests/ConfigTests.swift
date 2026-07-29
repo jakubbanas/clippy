@@ -41,4 +41,24 @@ final class ConfigTests: XCTestCase {
         XCTAssertTrue(config.quickCapture.enabled)
         XCTAssertEqual(config.quickCapture.snoozeMinutes, 10)
     }
+
+    func testNudgesDefaultToWaterAndBreaks() throws {
+        let config = try decode("{}")
+        XCTAssertEqual(config.nudges.map(\.name), ["Water", "Breaks"])
+        XCTAssertTrue(config.nudges.allSatisfy(\.enabled))
+        XCTAssertEqual(config.nudges.map(\.everyMinutes), [45, 90])
+    }
+
+    func testCustomNudgesUsedVerbatim() throws {
+        let config = try decode(#"{ "nudges": [{ "name": "Water", "enabled": false, "every_minutes": 30, "message": "hi" }] }"#)
+        XCTAssertEqual(config.nudges.count, 1)
+        XCTAssertEqual(config.nudges[0], NudgeConfig(name: "Water", enabled: false, everyMinutes: 30, message: "hi"))
+    }
+
+    func testPartialNudgeKeepsPerKeyDefaults() throws {
+        let config = try decode(#"{ "nudges": [{ "name": "Water", "enabled": false }] }"#)
+        XCTAssertEqual(config.nudges[0].everyMinutes, 60)
+        XCTAssertEqual(config.nudges[0].message, "Time for a nudge!")
+        XCTAssertFalse(config.nudges[0].enabled)
+    }
 }

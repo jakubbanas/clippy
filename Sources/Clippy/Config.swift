@@ -5,16 +5,23 @@ import Foundation
 struct AppConfig: Codable {
     var calendar: CalendarConfig
     var quickCapture: QuickCaptureConfig
+    var nudges: [NudgeConfig]
 
-    init(calendar: CalendarConfig = CalendarConfig(), quickCapture: QuickCaptureConfig = QuickCaptureConfig()) {
+    init(
+        calendar: CalendarConfig = CalendarConfig(),
+        quickCapture: QuickCaptureConfig = QuickCaptureConfig(),
+        nudges: [NudgeConfig] = NudgeConfig.defaults
+    ) {
         self.calendar = calendar
         self.quickCapture = quickCapture
+        self.nudges = nudges
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         calendar = try container.decodeIfPresent(CalendarConfig.self, forKey: .calendar) ?? CalendarConfig()
         quickCapture = try container.decodeIfPresent(QuickCaptureConfig.self, forKey: .quickCapture) ?? QuickCaptureConfig()
+        nudges = try container.decodeIfPresent([NudgeConfig].self, forKey: .nudges) ?? NudgeConfig.defaults
     }
 }
 
@@ -57,6 +64,35 @@ struct QuickCaptureConfig: Codable {
         enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
         hotkey = try container.decodeIfPresent(String.self, forKey: .hotkey) ?? "⌥Space"
         snoozeMinutes = try container.decodeIfPresent(Double.self, forKey: .snoozeMinutes) ?? 10
+    }
+}
+
+/// A recurring reminder to do something (drink water, take a break). Fires every
+/// `everyMinutes` while `enabled`.
+struct NudgeConfig: Codable, Equatable {
+    var name: String
+    var enabled: Bool
+    var everyMinutes: Double
+    var message: String
+
+    static let defaults: [NudgeConfig] = [
+        NudgeConfig(name: "Water", enabled: true, everyMinutes: 45, message: "💧 Time for some water!"),
+        NudgeConfig(name: "Breaks", enabled: true, everyMinutes: 90, message: "Stretch and rest your eyes for a moment."),
+    ]
+
+    init(name: String = "Nudge", enabled: Bool = true, everyMinutes: Double = 60, message: String = "Time for a nudge!") {
+        self.name = name
+        self.enabled = enabled
+        self.everyMinutes = everyMinutes
+        self.message = message
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decodeIfPresent(String.self, forKey: .name) ?? "Nudge"
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+        everyMinutes = try container.decodeIfPresent(Double.self, forKey: .everyMinutes) ?? 60
+        message = try container.decodeIfPresent(String.self, forKey: .message) ?? "Time for a nudge!"
     }
 }
 
