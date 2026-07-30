@@ -26,6 +26,13 @@ final class NudgesFeatureTests: XCTestCase {
         XCTAssertTrue(NudgesFeature.dueNudges(nudges: [water], now: now, lastFired: [:]).isEmpty)
     }
 
+    func testNothingFiresWhileUserIsAway() {
+        let lastFired = ["Water": now.addingTimeInterval(-999 * 60)] // long overdue
+        XCTAssertTrue(
+            NudgesFeature.dueNudges(nudges: [water], now: now, lastFired: lastFired, userIsActive: false).isEmpty
+        )
+    }
+
     func testOnlyElapsedNudgesFire() {
         let breaks = NudgeConfig(name: "Breaks", enabled: true, everyMinutes: 90, message: "b")
         let lastFired = [

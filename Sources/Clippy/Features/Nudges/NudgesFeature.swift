@@ -2,15 +2,19 @@ import Foundation
 
 /// Feature #3: recurring nudges (drink water, take a break).
 ///
-/// Each configured nudge fires every `everyMinutes` while enabled. Timing is
-/// in-memory only — unlike quick-capture one-shots, a nudge missed while the app
-/// was closed doesn't matter, so there's nothing to persist. `lastFired` starts
-/// at launch time, so the first nudge lands one interval later (no startup nag).
+/// Each configured nudge fires every `everyMinutes` while enabled — but only while
+/// you're actually at the machine. If you've been idle past `idleThreshold` (asleep,
+/// away, in a meeting), nudges are suppressed rather than piling up unseen; they
+/// resume when you're back. Timing is in-memory only — a nudge missed while away
+/// doesn't matter, so there's nothing to persist. `lastFired` starts at launch time,
+/// so the first nudge lands one interval later (no startup nag).
 final class NudgesFeature: Feature {
     let id = "nudges"
     let name = "Recurring nudges"
 
     private let pollInterval: TimeInterval = 15
+    /// Idle longer than this = away; suppress nudges.
+    private static let idleThreshold: TimeInterval = 5 * 60
     private var task: Task<Void, Never>?
 
     func start(context: FeatureContext) {
@@ -22,7 +26,8 @@ final class NudgesFeature: Feature {
             var lastFired = Dictionary(uniqueKeysWithValues: nudges.map { ($0.name, Date()) })
             while !Task.isCancelled {
                 let now = Date()
-                for nudge in Self.dueNudges(nudges: nudges, now: now, lastFired: lastFired) {
+                let userIsActive = UserActivity.idleSeconds() < Self.idleThreshold
+                for nudge in Self.dueNudges(nudges: nudges, now: now, lastFired: lastFired, userIsActive: userIsActive) {
                     lastFired[nudge.name] = now
                     announcer.announce(Self.announcement(for: nudge))
                 }
@@ -36,10 +41,15 @@ final class NudgesFeature: Feature {
         task = nil
     }
 
-    /// Pure fire computation: enabled nudges whose interval has elapsed since they
-    /// last fired.
-    static func dueNudges(nudges: [NudgeConfig], now: Date, lastFired: [String: Date]) -> [NudgeConfig] {
-        nudges.filter { nudge in
+    /// Pure fire computation: while the user is active, enabled nudges whose interval
+    /// has elapsed since they last fired. When away, nothing fires (and, because
+    /// `lastFired` isn't advanced, everything is due the moment they return — so a
+    /// nudge fires once on return, not once per missed interval).
+    static func dueNudges(
+        nudges: [NudgeConfig], now: Date, lastFired: [String: Date], userIsActive: Bool = true
+    ) -> [NudgeConfig] {
+        guard userIsActive else { return [] }
+        return nudges.filter { nudge in
             guard nudge.enabled, let last = lastFired[nudge.name] else { return false }
             return now.timeIntervalSince(last) >= nudge.everyMinutes * 60
         }

@@ -5,8 +5,14 @@ Each is one new file in `Features/` + one line in `Registry.swift` (the extensib
 
 ## Done
 
-- [x] **Quick capture** — global hotkey → tiny input box → reminder pops at a chosen time.
+- [x] **Quick capture** — launcher menu → tiny input box → reminder pops at a chosen time.
   Kills the #1 ADHD failure: thought vanishes before you act. (`Features/QuickCapture/`)
+- [x] **Water + break nudges** — recurring reminders, per-nudge on/off in config, suppressed
+  while you're idle (no nagging when away/asleep). (`Features/Nudges/`)
+- [x] **Focus sessions** (body-doubling / focus timer) — declare goal + duration, silent block,
+  check-out at the end with "Another round". (`Features/Focus/`)
+- [x] **Command launcher** — one hotkey → menu of every feature's commands (replaced per-feature
+  hotkeys). (`Core/CommandLauncher.swift`)
 
 ## Externalize memory (forgetting things)
 
@@ -18,14 +24,17 @@ Each is one new file in `Features/` + one line in `Registry.swift` (the extensib
 ## Time blindness
 
 - [ ] **Heads-down check-in** — "been 90min on one thing, still the right task?" Periodic re-orient.
-- [ ] **Focus timer** — start a focus block, Clippy guards it, pops at the end.
 - [ ] **Prep-doc surfacing** — extend calendar reminder: "next meeting in 5, here's the doc/link."
 
 ## Routines / rituals
 
-- [ ] **Meds + water + break nudges** — recurring health reminders. Meds reminder = big ADHD win,
-  trivial build (fixed-time recurrence on top of the quick-capture store).
 - [ ] **Daily bookend** — morning "top 3 today?", evening "what's unfinished, carry to tomorrow?"
+
+## Nudge / focus follow-ups (deferred)
+
+- [ ] Configurable idle threshold (hardcoded 5 min in `NudgesFeature`).
+- [ ] Focus: audio "focus jam" loop; persistent ambient Clippy; extract shared input-panel
+  from `CaptureWindow` / `FocusStartWindow`.
 
 ## Quick-capture follow-ups (deferred from v1)
 
