@@ -2,12 +2,13 @@ import Foundation
 import IOKit
 
 /// Reads how long the user has been idle (no keyboard/mouse input) from the HID
-/// system. Used to suppress nudges while you're away — asleep, in a meeting, off
-/// the machine — instead of nagging on a clock. Needs no special permission.
+/// system. Shared infrastructure: features use it to tell whether you're at the
+/// machine — nudges suppress themselves while you're away, the break tracker
+/// watches for you coming back. Needs no special permission.
 enum UserActivity {
     /// Seconds since the last input event. Returns 0 (treated as "active") if the
     /// HID property can't be read, so a detection failure fails open rather than
-    /// silencing nudges forever.
+    /// silencing everything that depends on it.
     static func idleSeconds() -> TimeInterval {
         var iterator: io_iterator_t = 0
         guard IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOHIDSystem"), &iterator) == KERN_SUCCESS else {

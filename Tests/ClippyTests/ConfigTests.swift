@@ -40,6 +40,18 @@ final class ConfigTests: XCTestCase {
         XCTAssertTrue(config.quickCapture.enabled)
     }
 
+    func testBreakTrackerDefaults() throws {
+        let config = try decode("{}")
+        XCTAssertTrue(config.breakTracker.enabled)
+        XCTAssertEqual(config.breakTracker.minBreakMinutes, 15)
+    }
+
+    func testPartialBreakTrackerKeepsDefaults() throws {
+        let config = try decode(#"{ "break_tracker": { "min_break_minutes": 30 } }"#)
+        XCTAssertEqual(config.breakTracker.minBreakMinutes, 30)
+        XCTAssertTrue(config.breakTracker.enabled)
+    }
+
     func testLauncherDefaultsAndOverride() throws {
         XCTAssertEqual(try decode("{}").launcher.hotkey, "⌥Space")
         XCTAssertEqual(try decode(#"{ "launcher": { "hotkey": "cmd shift space" } }"#).launcher.hotkey, "cmd shift space")

@@ -7,6 +7,7 @@ struct AppConfig: Codable {
     var quickCapture: QuickCaptureConfig
     var nudges: [NudgeConfig]
     var focus: FocusConfig
+    var breakTracker: BreakTrackerConfig
     var launcher: LauncherConfig
 
     init(
@@ -14,12 +15,14 @@ struct AppConfig: Codable {
         quickCapture: QuickCaptureConfig = QuickCaptureConfig(),
         nudges: [NudgeConfig] = NudgeConfig.defaults,
         focus: FocusConfig = FocusConfig(),
+        breakTracker: BreakTrackerConfig = BreakTrackerConfig(),
         launcher: LauncherConfig = LauncherConfig()
     ) {
         self.calendar = calendar
         self.quickCapture = quickCapture
         self.nudges = nudges
         self.focus = focus
+        self.breakTracker = breakTracker
         self.launcher = launcher
     }
 
@@ -29,6 +32,7 @@ struct AppConfig: Codable {
         quickCapture = try container.decodeIfPresent(QuickCaptureConfig.self, forKey: .quickCapture) ?? QuickCaptureConfig()
         nudges = try container.decodeIfPresent([NudgeConfig].self, forKey: .nudges) ?? NudgeConfig.defaults
         focus = try container.decodeIfPresent(FocusConfig.self, forKey: .focus) ?? FocusConfig()
+        breakTracker = try container.decodeIfPresent(BreakTrackerConfig.self, forKey: .breakTracker) ?? BreakTrackerConfig()
         launcher = try container.decodeIfPresent(LauncherConfig.self, forKey: .launcher) ?? LauncherConfig()
     }
 }
@@ -68,6 +72,24 @@ struct QuickCaptureConfig: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
         snoozeMinutes = try container.decodeIfPresent(Double.self, forKey: .snoozeMinutes) ?? 10
+    }
+}
+
+/// "Welcome back" break tracking — reports how long you were away when you return.
+struct BreakTrackerConfig: Codable {
+    var enabled: Bool
+    /// Don't announce breaks shorter than this.
+    var minBreakMinutes: Double
+
+    init(enabled: Bool = true, minBreakMinutes: Double = 15) {
+        self.enabled = enabled
+        self.minBreakMinutes = minBreakMinutes
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+        minBreakMinutes = try container.decodeIfPresent(Double.self, forKey: .minBreakMinutes) ?? 15
     }
 }
 

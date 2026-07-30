@@ -13,6 +13,8 @@ Each is one new file in `Features/` + one line in `Registry.swift` (the extensib
   check-out at the end with "Another round". (`Features/Focus/`)
 - [x] **Command launcher** — one hotkey → menu of every feature's commands (replaced per-feature
   hotkeys). (`Core/CommandLauncher.swift`)
+- [x] **Break tracker** — "Welcome back, away for N min" on return from a break ≥15 min. Shares
+  `Core/UserActivity` (idle detection) with nudges. (`Features/BreakTracker/`)
 
 ## Externalize memory (forgetting things)
 
