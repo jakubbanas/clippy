@@ -50,6 +50,19 @@ final class ClippyWindow {
         sprite.onClick = { [weak self] in self?.onAction?(.dismiss) }
     }
 
+    /// Distance-based click/drag classification, pulled out for unit testing.
+    static func isDrag(from start: NSPoint, to end: NSPoint, threshold: CGFloat) -> Bool {
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        return (dx * dx + dy * dy) > threshold * threshold
+    }
+
+    /// Picks an idle-reaction animation name from a fixed set by index (not live
+    /// randomness), so animation selection is unit-testable.
+    static func pickIdleAnimation(from set: [String], index: Int) -> String {
+        set[index % set.count]
+    }
+
     /// Slides in, plays the announcement's animation, leaves the bubble up.
     func show(_ announcement: Announcement) {
         bubble.configure(with: announcement)
