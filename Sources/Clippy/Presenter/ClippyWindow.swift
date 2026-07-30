@@ -1,14 +1,18 @@
 import AppKit
 
-/// Borderless transparent panel in the bottom-right screen corner.
-/// Exists on screen only while an announcement is showing.
+/// Borderless transparent panel showing Clippy at all times — a static resting pose
+/// when idle, or the active announcement's bubble + animation. Draggable while idle;
+/// dragging is disabled during an announcement so it can't fight the bubble layout.
 final class ClippyWindow {
     private static let size = NSSize(width: 380, height: 340)
     private static let margin: CGFloat = 16
+    private static let idleAnimations = ["GetAttention", "Explain", "Congratulate"]
 
     private let panel: NSPanel
     private let sprite: SpriteView
     private let bubble = BubbleView()
+    private let dragView = DragClickView()
+    private var isAnnouncing = false
 
     var onAction: ((AnnouncementAction.Kind) -> Void)?
 
@@ -29,25 +33,102 @@ final class ClippyWindow {
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = false
 
-        let content = NSView(frame: NSRect(origin: .zero, size: Self.size))
-        panel.contentView = content
+        dragView.frame = NSRect(origin: .zero, size: Self.size)
+        panel.contentView = dragView
 
         sprite.translatesAutoresizingMaskIntoConstraints = false
         bubble.translatesAutoresizingMaskIntoConstraints = false
-        content.addSubview(bubble)
-        content.addSubview(sprite)
+        dragView.addSubview(bubble)
+        dragView.addSubview(sprite)
         NSLayoutConstraint.activate([
-            sprite.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -8),
-            sprite.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -8),
+            sprite.trailingAnchor.constraint(equalTo: dragView.trailingAnchor, constant: -8),
+            sprite.bottomAnchor.constraint(equalTo: dragView.bottomAnchor, constant: -8),
             sprite.widthAnchor.constraint(equalToConstant: sprite.intrinsicContentSize.width),
             sprite.heightAnchor.constraint(equalToConstant: sprite.intrinsicContentSize.height),
-            bubble.leadingAnchor.constraint(greaterThanOrEqualTo: content.leadingAnchor, constant: 8),
-            bubble.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -8),
+            bubble.leadingAnchor.constraint(greaterThanOrEqualTo: dragView.leadingAnchor, constant: 8),
+            bubble.trailingAnchor.constraint(equalTo: dragView.trailingAnchor, constant: -8),
             bubble.bottomAnchor.constraint(equalTo: sprite.topAnchor, constant: -10),
         ])
 
         bubble.onAction = { [weak self] kind in self?.onAction?(kind) }
-        sprite.onClick = { [weak self] in self?.onAction?(.dismiss) }
+        dragView.onClick = { [weak self] in self?.handleClick() }
+        dragView.onDragged = { [weak self] proposedOrigin in
+            guard let self else { return }
+            self.panel.setFrameOrigin(self.clampedOrigin(proposedOrigin))
+        }
+
+        positionBottomRight()
+        enterIdle()
+        panel.orderFrontRegardless()
+    }
+
+    /// Configures the bubble and plays the announcement's animation. The window is
+    /// already on screen wherever Clippy currently sits — this does not reposition it.
+    func show(_ announcement: Announcement) {
+        isAnnouncing = true
+        dragView.isDraggable = false
+        bubble.isHidden = false
+        bubble.configure(with: announcement)
+        sprite.play(announcement.animation)
+    }
+
+    /// Plays the goodbye animation (if present), then returns to the idle resting pose.
+    func dismiss(completion: @escaping () -> Void) {
+        sprite.play("GoodBye") { [weak self] in
+            self?.enterIdle()
+            completion()
+        }
+    }
+
+    /// Orders the window off screen, independent of idle/announcement state.
+    func hideManually() {
+        panel.orderOut(nil)
+    }
+
+    /// Restores the window on screen, showing whatever state (idle or announcement)
+    /// it was already in.
+    func showManually() {
+        panel.orderFrontRegardless()
+    }
+
+    private func enterIdle() {
+        isAnnouncing = false
+        dragView.isDraggable = true
+        bubble.isHidden = true
+        sprite.play("RestPose")
+    }
+
+    private func handleClick() {
+        if isAnnouncing {
+            onAction?(.dismiss)
+            return
+        }
+        let name = Self.pickIdleAnimation(
+            from: Self.idleAnimations,
+            index: Int.random(in: 0..<Self.idleAnimations.count)
+        )
+        sprite.play(name) { [weak self] in
+            self?.sprite.play("RestPose")
+        }
+    }
+
+    private func positionBottomRight() {
+        guard let screen = NSScreen.main else { return }
+        let visible = screen.visibleFrame
+        let origin = NSPoint(
+            x: visible.maxX - Self.size.width - Self.margin,
+            y: visible.minY + Self.margin
+        )
+        panel.setFrame(NSRect(origin: origin, size: Self.size), display: true)
+    }
+
+    private func clampedOrigin(_ proposed: NSPoint) -> NSPoint {
+        guard let screen = panel.screen ?? NSScreen.main else { return proposed }
+        let visible = screen.visibleFrame
+        let size = panel.frame.size
+        let x = min(max(proposed.x, visible.minX), visible.maxX - size.width)
+        let y = min(max(proposed.y, visible.minY), visible.maxY - size.height)
+        return NSPoint(x: x, y: y)
     }
 
     /// Distance-based click/drag classification, pulled out for unit testing.
@@ -62,41 +143,46 @@ final class ClippyWindow {
     static func pickIdleAnimation(from set: [String], index: Int) -> String {
         set[index % set.count]
     }
+}
 
-    /// Slides in, plays the announcement's animation, leaves the bubble up.
-    func show(_ announcement: Announcement) {
-        bubble.configure(with: announcement)
-        positionBottomRight()
+/// Content view that distinguishes a click from a drag by total mouse movement, and
+/// reports drags as a proposed new window origin for the owner to clamp and apply.
+/// The whole view's bounding box captures mouse events (no per-pixel hit-testing).
+final class DragClickView: NSView {
+    private static let clickThreshold: CGFloat = 4
 
-        panel.alphaValue = 0
-        panel.orderFrontRegardless()
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.25
-            panel.animator().alphaValue = 1
-        }
-        sprite.play(announcement.animation)
+    var onClick: (() -> Void)?
+    var onDragged: ((NSPoint) -> Void)?
+    var isDraggable = true
+
+    private var dragStartScreenPoint: NSPoint?
+    private var dragStartWindowOrigin: NSPoint?
+    private var didDrag = false
+
+    override func mouseDown(with event: NSEvent) {
+        dragStartScreenPoint = NSEvent.mouseLocation
+        dragStartWindowOrigin = window?.frame.origin
+        didDrag = false
     }
 
-    /// Plays the goodbye animation (if present), then hides.
-    func dismiss(completion: @escaping () -> Void) {
-        sprite.play("GoodBye") { [panel] in
-            NSAnimationContext.runAnimationGroup({ context in
-                context.duration = 0.2
-                panel.animator().alphaValue = 0
-            }, completionHandler: {
-                panel.orderOut(nil)
-                completion()
-            })
+    override func mouseDragged(with event: NSEvent) {
+        guard isDraggable,
+              let startScreen = dragStartScreenPoint,
+              let startOrigin = dragStartWindowOrigin else { return }
+        let current = NSEvent.mouseLocation
+        if ClippyWindow.isDrag(from: startScreen, to: current, threshold: Self.clickThreshold) {
+            didDrag = true
         }
+        guard didDrag else { return }
+        let delta = NSPoint(x: current.x - startScreen.x, y: current.y - startScreen.y)
+        onDragged?(NSPoint(x: startOrigin.x + delta.x, y: startOrigin.y + delta.y))
     }
 
-    private func positionBottomRight() {
-        guard let screen = NSScreen.main else { return }
-        let visible = screen.visibleFrame
-        let origin = NSPoint(
-            x: visible.maxX - Self.size.width - Self.margin,
-            y: visible.minY + Self.margin
-        )
-        panel.setFrame(NSRect(origin: origin, size: Self.size), display: true)
+    override func mouseUp(with event: NSEvent) {
+        if !didDrag {
+            onClick?()
+        }
+        dragStartScreenPoint = nil
+        dragStartWindowOrigin = nil
     }
 }

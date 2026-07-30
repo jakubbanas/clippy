@@ -10,9 +10,6 @@ final class SpriteView: NSView {
     private var pendingStep: DispatchWorkItem?
     private var frameCache: [String: [CGImage?]] = [:]
 
-    /// Called when the user clicks the sprite itself (as opposed to a bubble button).
-    var onClick: (() -> Void)?
-
     private static let maxFramesPerPlay = 120
     /// Multiplier on each frame's authored duration; <1 plays faster.
     private static let speedMultiplier = 0.5
@@ -50,10 +47,6 @@ final class SpriteView: NSView {
     func stop() {
         pendingStep?.cancel()
         pendingStep = nil
-    }
-
-    override func mouseDown(with event: NSEvent) {
-        onClick?()
     }
 
     private func step(name: String, frames: [AgentData.Frame], index: Int, completion: (() -> Void)?) {
