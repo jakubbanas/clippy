@@ -20,6 +20,16 @@ final class Presenter {
         presentNextIfIdle()
     }
 
+    /// Shows/hides the window directly, independent of the announcement queue —
+    /// used by the tray menu's "Hide Clippy" / "Show Clippy" toggle.
+    func setVisible(_ visible: Bool) {
+        if visible {
+            window.showManually()
+        } else {
+            window.hideManually()
+        }
+    }
+
     private func presentNextIfIdle() {
         guard current == nil, !queue.isEmpty else { return }
         let announcement = queue.removeFirst()

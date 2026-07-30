@@ -8,6 +8,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var features: [Feature] = []
     private let launcher = CommandLauncher()
     private var loginItem: NSMenuItem!
+    private var hideClippyItem: NSMenuItem!
+    private var isClippyHidden = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -59,6 +61,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let reloadItem = NSMenuItem(title: "Reload Config", action: #selector(reloadConfig), keyEquivalent: "")
         reloadItem.target = self
         menu.addItem(reloadItem)
+        hideClippyItem = NSMenuItem(title: "Hide Clippy", action: #selector(toggleClippyVisibility), keyEquivalent: "")
+        hideClippyItem.target = self
+        menu.addItem(hideClippyItem)
         loginItem = NSMenuItem(title: "Start at Login", action: #selector(toggleLoginItem), keyEquivalent: "")
         loginItem.target = self
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
@@ -75,6 +80,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func reloadConfig() {
         reloadFeatures()
+    }
+
+    @objc private func toggleClippyVisibility() {
+        isClippyHidden.toggle()
+        presenter.setVisible(!isClippyHidden)
+        hideClippyItem.title = isClippyHidden ? "Show Clippy" : "Hide Clippy"
     }
 
     @objc private func toggleLoginItem() {
