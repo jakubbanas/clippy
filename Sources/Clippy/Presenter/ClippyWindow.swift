@@ -6,7 +6,10 @@ import AppKit
 final class ClippyWindow {
     private static let size = NSSize(width: 380, height: 340)
     private static let margin: CGFloat = 16
-    private static let idleAnimations = ["GetAttention", "Explain", "Congratulate"]
+    private static let idleAnimations = [
+        "IdleRopePile", "IdleAtom", "Idle1_1", "IdleSideToSide",
+        "IdleHeadScratch", "IdleSnooze", "IdleFingerTap", "IdleEyeBrowRaise",
+    ]
 
     private let panel: NSPanel
     private let sprite: SpriteView
@@ -72,12 +75,10 @@ final class ClippyWindow {
         sprite.play(announcement.animation)
     }
 
-    /// Plays the goodbye animation (if present), then returns to the idle resting pose.
+    /// Returns to the idle resting pose — Clippy stays on screen, so no exit animation.
     func dismiss(completion: @escaping () -> Void) {
-        sprite.play("GoodBye") { [weak self] in
-            self?.enterIdle()
-            completion()
-        }
+        enterIdle()
+        completion()
     }
 
     /// Orders the window off screen, independent of idle/announcement state.

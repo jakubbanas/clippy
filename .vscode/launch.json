@@ -1,0 +1,24 @@
+{
+  "configurations": [
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:clippy}",
+      "name": "Debug Clippy",
+      "target": "Clippy",
+      "configuration": "debug",
+      "preLaunchTask": "swift: Build Debug Clippy"
+    },
+    {
+      "type": "swift",
+      "request": "launch",
+      "args": [],
+      "cwd": "${workspaceFolder:clippy}",
+      "name": "Release Clippy",
+      "target": "Clippy",
+      "configuration": "release",
+      "preLaunchTask": "swift: Build Release Clippy"
+    }
+  ]
+}

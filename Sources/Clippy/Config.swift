@@ -4,7 +4,6 @@ import Foundation
 /// Missing keys fall back to defaults, so partial config files are fine.
 struct AppConfig: Codable {
     var calendar: CalendarConfig
-    var quickCapture: QuickCaptureConfig
     var nudges: [NudgeConfig]
     var focus: FocusConfig
     var breakTracker: BreakTrackerConfig
@@ -12,14 +11,12 @@ struct AppConfig: Codable {
 
     init(
         calendar: CalendarConfig = CalendarConfig(),
-        quickCapture: QuickCaptureConfig = QuickCaptureConfig(),
         nudges: [NudgeConfig] = NudgeConfig.defaults,
         focus: FocusConfig = FocusConfig(),
         breakTracker: BreakTrackerConfig = BreakTrackerConfig(),
         launcher: LauncherConfig = LauncherConfig()
     ) {
         self.calendar = calendar
-        self.quickCapture = quickCapture
         self.nudges = nudges
         self.focus = focus
         self.breakTracker = breakTracker
@@ -29,7 +26,6 @@ struct AppConfig: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         calendar = try container.decodeIfPresent(CalendarConfig.self, forKey: .calendar) ?? CalendarConfig()
-        quickCapture = try container.decodeIfPresent(QuickCaptureConfig.self, forKey: .quickCapture) ?? QuickCaptureConfig()
         nudges = try container.decodeIfPresent([NudgeConfig].self, forKey: .nudges) ?? NudgeConfig.defaults
         focus = try container.decodeIfPresent(FocusConfig.self, forKey: .focus) ?? FocusConfig()
         breakTracker = try container.decodeIfPresent(BreakTrackerConfig.self, forKey: .breakTracker) ?? BreakTrackerConfig()
@@ -55,23 +51,6 @@ struct CalendarConfig: Codable {
         enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
         leadMinutes = try container.decodeIfPresent([Double].self, forKey: .leadMinutes) ?? [1, 0]
         calendars = try container.decodeIfPresent([String].self, forKey: .calendars)
-    }
-}
-
-struct QuickCaptureConfig: Codable {
-    var enabled: Bool
-    /// Minutes the Snooze action bumps a fired reminder forward.
-    var snoozeMinutes: Double
-
-    init(enabled: Bool = true, snoozeMinutes: Double = 10) {
-        self.enabled = enabled
-        self.snoozeMinutes = snoozeMinutes
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
-        snoozeMinutes = try container.decodeIfPresent(Double.self, forKey: .snoozeMinutes) ?? 10
     }
 }
 
@@ -143,10 +122,9 @@ struct FocusConfig: Codable {
     /// Pre-filled block length in the start panel.
     var defaultMinutes: Double
     /// Pop a gentle "still on it?" at the halfway point (only for blocks ≥ 20 min).
-    /// Off by default — a mid-block interruption works against the silent-focus point.
     var midCheckIn: Bool
 
-    init(enabled: Bool = true, defaultMinutes: Double = 25, midCheckIn: Bool = false) {
+    init(enabled: Bool = true, defaultMinutes: Double = 25, midCheckIn: Bool = true) {
         self.enabled = enabled
         self.defaultMinutes = defaultMinutes
         self.midCheckIn = midCheckIn
@@ -156,7 +134,7 @@ struct FocusConfig: Codable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
         defaultMinutes = try container.decodeIfPresent(Double.self, forKey: .defaultMinutes) ?? 25
-        midCheckIn = try container.decodeIfPresent(Bool.self, forKey: .midCheckIn) ?? false
+        midCheckIn = try container.decodeIfPresent(Bool.self, forKey: .midCheckIn) ?? true
     }
 }
 

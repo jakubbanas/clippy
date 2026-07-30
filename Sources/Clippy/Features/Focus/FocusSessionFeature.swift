@@ -5,9 +5,8 @@ import Foundation
 ///
 /// Exposes a "Start focus" command (opened via the shared command launcher). It
 /// shows a panel to declare a goal + duration. Clippy pops once to start the block,
-/// stays silent through it (silence is the point — a mid-block popup works against
-/// focus, so the halfway check-in is opt-in), then pops at the end with a check-out
-/// prompt tied to the declared goal.
+/// stays silent through it apart from an optional halfway check-in, then pops at
+/// the end with a check-out prompt tied to the declared goal.
 final class FocusSessionFeature: Feature {
     let id = "focus"
     let name = "Focus sessions"

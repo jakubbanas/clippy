@@ -28,18 +28,6 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(config.calendar.calendars, ["Work"])
     }
 
-    func testQuickCaptureDefaults() throws {
-        let config = try decode("{}")
-        XCTAssertTrue(config.quickCapture.enabled)
-        XCTAssertEqual(config.quickCapture.snoozeMinutes, 10)
-    }
-
-    func testPartialQuickCaptureKeepsDefaults() throws {
-        let config = try decode(#"{ "quick_capture": { "snooze_minutes": 5 } }"#)
-        XCTAssertEqual(config.quickCapture.snoozeMinutes, 5)
-        XCTAssertTrue(config.quickCapture.enabled)
-    }
-
     func testBreakTrackerDefaults() throws {
         let config = try decode("{}")
         XCTAssertTrue(config.breakTracker.enabled)
@@ -81,7 +69,7 @@ final class ConfigTests: XCTestCase {
         let config = try decode("{}")
         XCTAssertTrue(config.focus.enabled)
         XCTAssertEqual(config.focus.defaultMinutes, 25)
-        XCTAssertFalse(config.focus.midCheckIn)
+        XCTAssertTrue(config.focus.midCheckIn)
     }
 
     func testPartialFocusKeepsDefaults() throws {

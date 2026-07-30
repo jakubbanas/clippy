@@ -1,8 +1,9 @@
 import AppKit
 
-/// Owns the single global hotkey. On press, pops a menu of every command the
-/// features contributed and runs the one the user picks. This replaces per-feature
-/// hotkeys, so there's only one combo to register (and no cross-feature clashes).
+/// Owns the single global hotkey. On press, runs the sole contributed command
+/// directly — or, if more than one feature contributes a command, pops a menu to
+/// pick between them. This replaces per-feature hotkeys, so there's only one combo
+/// to register (and no cross-feature clashes).
 final class CommandLauncher {
     private var hotKey: HotKey?
     private var commands: [Command] = []
@@ -17,13 +18,21 @@ final class CommandLauncher {
             return
         }
         hotKey = HotKey(keyCode: combo.keyCode, modifiers: combo.modifiers) { [weak self] in
-            self?.showMenu()
+            self?.trigger()
         }
     }
 
     func stop() {
         hotKey?.unregister()
         hotKey = nil
+    }
+
+    private func trigger() {
+        if commands.count == 1 {
+            commands[0].perform()
+        } else {
+            showMenu()
+        }
     }
 
     private func showMenu() {
