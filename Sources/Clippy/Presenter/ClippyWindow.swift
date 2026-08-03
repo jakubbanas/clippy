@@ -14,6 +14,8 @@ final class ClippyWindow {
     private let panel: NSPanel
     private let sprite: SpriteView
     private let bubble = BubbleView()
+    private let statusContainer = NSView()
+    private let statusLabel = NSTextField(labelWithString: "")
     private let dragView = DragClickView()
     private var isAnnouncing = false
 
@@ -41,16 +43,38 @@ final class ClippyWindow {
 
         sprite.translatesAutoresizingMaskIntoConstraints = false
         bubble.translatesAutoresizingMaskIntoConstraints = false
+
+        statusContainer.wantsLayer = true
+        statusContainer.layer?.backgroundColor = NSColor.black.withAlphaComponent(0.55).cgColor
+        statusContainer.layer?.cornerRadius = 8
+        statusContainer.isHidden = true
+        statusContainer.translatesAutoresizingMaskIntoConstraints = false
+
+        statusLabel.font = .boldSystemFont(ofSize: 12)
+        statusLabel.textColor = .white
+        statusLabel.maximumNumberOfLines = 1
+        statusLabel.lineBreakMode = .byTruncatingTail
+        statusLabel.translatesAutoresizingMaskIntoConstraints = false
+
         dragView.addSubview(bubble)
+        dragView.addSubview(statusContainer)
+        statusContainer.addSubview(statusLabel)
         dragView.addSubview(sprite)
         NSLayoutConstraint.activate([
             sprite.trailingAnchor.constraint(equalTo: dragView.trailingAnchor, constant: -8),
-            sprite.bottomAnchor.constraint(equalTo: dragView.bottomAnchor, constant: -8),
+            sprite.bottomAnchor.constraint(equalTo: statusContainer.topAnchor, constant: -6),
             sprite.widthAnchor.constraint(equalToConstant: sprite.intrinsicContentSize.width),
             sprite.heightAnchor.constraint(equalToConstant: sprite.intrinsicContentSize.height),
             bubble.leadingAnchor.constraint(greaterThanOrEqualTo: dragView.leadingAnchor, constant: 8),
             bubble.trailingAnchor.constraint(equalTo: dragView.trailingAnchor, constant: -8),
             bubble.bottomAnchor.constraint(equalTo: sprite.topAnchor, constant: -10),
+            statusContainer.trailingAnchor.constraint(equalTo: dragView.trailingAnchor, constant: -8),
+            statusContainer.leadingAnchor.constraint(greaterThanOrEqualTo: dragView.leadingAnchor, constant: 8),
+            statusContainer.bottomAnchor.constraint(equalTo: dragView.bottomAnchor, constant: -8),
+            statusLabel.leadingAnchor.constraint(equalTo: statusContainer.leadingAnchor, constant: 8),
+            statusLabel.trailingAnchor.constraint(equalTo: statusContainer.trailingAnchor, constant: -8),
+            statusLabel.topAnchor.constraint(equalTo: statusContainer.topAnchor, constant: 4),
+            statusLabel.bottomAnchor.constraint(equalTo: statusContainer.bottomAnchor, constant: -4),
         ])
 
         bubble.onAction = { [weak self] kind in self?.onAction?(kind) }
@@ -79,6 +103,17 @@ final class ClippyWindow {
     func dismiss(completion: @escaping () -> Void) {
         enterIdle()
         completion()
+    }
+
+    /// Shows/hides the persistent focus-session status, independent of the
+    /// announcement queue and of idle/announcing state. Nil or empty hides it.
+    func setStatus(_ text: String?) {
+        if let text, !text.isEmpty {
+            statusLabel.stringValue = text
+            statusContainer.isHidden = false
+        } else {
+            statusContainer.isHidden = true
+        }
     }
 
     /// Orders the window off screen, independent of idle/announcement state.

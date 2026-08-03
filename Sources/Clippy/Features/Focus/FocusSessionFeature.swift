@@ -14,6 +14,8 @@ final class FocusSessionFeature: Feature {
     private var announcer: Announcer?
     private var startWindow: FocusStartWindow?
     private var sessionTask: Task<Void, Never>?
+    private var statusTickTask: Task<Void, Never>?
+    private static let statusTickInterval: TimeInterval = 15
 
     private var defaultMinutes: Double = 25
     private var midCheckIn = false
@@ -33,6 +35,9 @@ final class FocusSessionFeature: Feature {
         enabled = false
         sessionTask?.cancel()
         sessionTask = nil
+        statusTickTask?.cancel()
+        statusTickTask = nil
+        announcer?.setStatus(nil)
         announcer = nil
         DispatchQueue.main.async { [weak self] in
             self?.startWindow?.close()
@@ -61,7 +66,21 @@ final class FocusSessionFeature: Feature {
     private func beginSession(goal: String, minutes: Double) {
         guard let announcer else { return }
         sessionTask?.cancel()
+        statusTickTask?.cancel()
         announcer.announce(Self.startAnnouncement(goal: goal, minutes: minutes))
+
+        let endDate = Date().addingTimeInterval(minutes * 60)
+        statusTickTask = Task {
+            while !Task.isCancelled {
+                let remaining = endDate.timeIntervalSinceNow
+                guard remaining > 0 else {
+                    announcer.setStatus(nil)
+                    return
+                }
+                announcer.setStatus(Self.statusText(goal: goal, remaining: remaining))
+                try? await Task.sleep(nanoseconds: UInt64(Self.statusTickInterval * 1_000_000_000))
+            }
+        }
 
         let beats = Self.beats(durationMinutes: minutes, midCheckIn: midCheckIn)
         sessionTask = Task { [weak self] in
@@ -74,6 +93,8 @@ final class FocusSessionFeature: Feature {
                 case .mid:
                     announcer.announce(Self.midAnnouncement(goal: goal))
                 case .end:
+                    self?.statusTickTask?.cancel()
+                    announcer.setStatus(nil)
                     announcer.announce(Self.endAnnouncement(goal: goal) {
                         self?.beginSession(goal: goal, minutes: minutes)
                     })
@@ -95,6 +116,18 @@ final class FocusSessionFeature: Feature {
         }
         beats.append((total, .end))
         return beats
+    }
+
+    /// Pure formatting for the persistent status label. `remaining` is clamped to
+    /// zero before formatting — callers are expected to clear the status once it
+    /// reaches zero rather than display "0m left".
+    static func statusText(goal: String, remaining: TimeInterval) -> String {
+        let clamped = max(0, remaining)
+        if clamped < 60 {
+            return "\(goal) — under a minute"
+        }
+        let minutes = Int((clamped / 60).rounded(.up))
+        return "\(goal) — \(minutes)m left"
     }
 
     private static func startAnnouncement(goal: String, minutes: Double) -> Announcement {

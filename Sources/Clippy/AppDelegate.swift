@@ -22,9 +22,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        announcer = Announcer { [presenter] announcement in
-            presenter?.enqueue(announcement)
-        }
+        announcer = Announcer(
+            deliver: { [presenter] announcement in presenter?.enqueue(announcement) },
+            deliverStatus: { [presenter] text in presenter?.setStatus(text) }
+        )
 
         setUpStatusItem()
         features = Registry.builtInFeatures()

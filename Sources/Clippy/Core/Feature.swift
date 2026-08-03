@@ -24,18 +24,28 @@ struct FeatureContext {
     let config: AppConfig
 }
 
-/// Thread-safe handle features use to request a Clippy appearance.
-/// Hops to the main thread before touching the presenter.
+/// Thread-safe handle features use to request a Clippy appearance or set a
+/// persistent status. Hops to the main thread before touching the presenter.
 final class Announcer {
     private let deliver: (Announcement) -> Void
+    private let deliverStatus: (String?) -> Void
 
-    init(deliver: @escaping (Announcement) -> Void) {
+    init(deliver: @escaping (Announcement) -> Void, deliverStatus: @escaping (String?) -> Void) {
         self.deliver = deliver
+        self.deliverStatus = deliverStatus
     }
 
     func announce(_ announcement: Announcement) {
         DispatchQueue.main.async { [deliver] in
             deliver(announcement)
+        }
+    }
+
+    /// Sets or clears a persistent status shown alongside Clippy, independent of
+    /// the announcement queue. Pass nil to clear.
+    func setStatus(_ text: String?) {
+        DispatchQueue.main.async { [deliverStatus] in
+            deliverStatus(text)
         }
     }
 }

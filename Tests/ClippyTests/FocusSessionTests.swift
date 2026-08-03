@@ -18,4 +18,25 @@ final class FocusSessionTests: XCTestCase {
         let beats = FocusSessionFeature.beats(durationMinutes: 15, midCheckIn: true)
         XCTAssertEqual(beats.map(\.kind), [.end], "blocks under 20 min shouldn't be interrupted")
     }
+
+    func testStatusTextRoundsUpMinutes() {
+        XCTAssertEqual(
+            FocusSessionFeature.statusText(goal: "Fix auth bug", remaining: 14 * 60 + 1),
+            "Fix auth bug — 15m left"
+        )
+    }
+
+    func testStatusTextExactMinuteBoundary() {
+        XCTAssertEqual(
+            FocusSessionFeature.statusText(goal: "Fix auth bug", remaining: 60),
+            "Fix auth bug — 1m left"
+        )
+    }
+
+    func testStatusTextUnderAMinute() {
+        XCTAssertEqual(
+            FocusSessionFeature.statusText(goal: "Fix auth bug", remaining: 59),
+            "Fix auth bug — under a minute"
+        )
+    }
 }
