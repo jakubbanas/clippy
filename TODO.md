@@ -1,81 +1,62 @@
-# TODO — Clippy ADHD productivity features
+# TODO — Clippy ADHD Features
 
-Feature ideas for helping externalize memory, fight time blindness, and hold routines.
-Each is one new file in `Features/` + one line in `Registry.swift` (the extensibility contract).
+Ideas to help you:
+- Remember things (before they vanish)
+- Notice time passing
+- Build and keep routines
+
+Adding a feature: one new folder in `Features/` + one line in `Registry.swift`. That's it.
 
 ## Done
 
-- [x] **Quick capture** — launcher menu → tiny input box → reminder pops at a chosen time.
-  Kills the #1 ADHD failure: thought vanishes before you act. (`Features/QuickCapture/`)
-- [x] **Water + break nudges** — recurring reminders, per-nudge on/off in config, suppressed
-  while you're idle (no nagging when away/asleep). (`Features/Nudges/`)
-- [x] **Focus sessions** (body-doubling / focus timer) — declare goal + duration, silent block,
-  check-out at the end with "Another round". (`Features/Focus/`)
-- [x] **Command launcher** — one hotkey → menu of every feature's commands (replaced per-feature
-  hotkeys). (`Core/CommandLauncher.swift`)
-- [x] **Break tracker** — "Welcome back, away for N min" on return from a break ≥15 min. Shares
-  `Core/UserActivity` (idle detection) with nudges. (`Features/BreakTracker/`)
+- [x] **Quick capture** — hotkey → type something → Clippy reminds you later. Fixes the "thought vanishes" problem.
+- [x] **Nudges** — water reminders, break reminders. Turn each on/off. Quiet when you're away.
+- [x] **Focus sessions** — say what you're doing, set a timer, Clippy stays silent. Says "more rounds?" at the end.
+- [x] **Command launcher** — one hotkey opens a menu with all commands.
+- [x] **Break tracker** — "you were gone 12 min" when you come back (≥15 min away).
 
-## Externalize memory (forgetting things)
+## Remember things (before they slip away)
 
-- [ ] **Meeting action-item catcher** — meeting ends → Clippy pops "what did you commit to?"
-  Closes the loop before you forget.
-- [ ] **Resurface stale loops** — open PR waiting on you / unread flagged Slack. Clippy nags.
-  (GitHub + Slack MCP already available.)
+- [ ] **Action items from meetings** — when meeting ends, Clippy asks "what did you commit to?" Catch it before it's gone.
+- [ ] **Stale pull requests & Slack** — nag you about open PRs or flagged messages you haven't touched.
 
-## Time blindness
+## Notice time passing
 
-- [ ] **Heads-down check-in** — "been 90min on one thing, still the right task?" Periodic re-orient.
-- [ ] **Prep-doc surfacing** — extend calendar reminder: "next meeting in 5, here's the doc/link."
+- [ ] **Check in on long tasks** — after 90 min on one thing, ask "is this still the right task?"
+- [ ] **Meeting prep** — before a meeting, Clippy shows the doc/link you'll need.
 
-## Routines / rituals
+## Build routines
 
-- [ ] **Daily bookend** — morning "top 3 today?", evening "what's unfinished, carry to tomorrow?"
+- [ ] **Daily bookends** — morning: "what are your top 3?" Evening: "what's left for tomorrow?"
 
-## Body-doubling / mirroring (from HCI "12 Dimensions" research)
+## Clippy reacts to your work (feels like company)
 
-- [ ] **Git-aware companion states** — poll local repo(s); commit → Clippy reacts (happy/fed),
-  long dry spell → drifts to idle/sleepy animation. Behavioral mirror, zero manual input.
-  Fits: new `Features/GitPulse/` polling `git log`, like calendar's 15s poll.
-- [ ] **Build/test watcher** — long `swift build`/`swift test` running → Clippy shifts to
-  "waiting/watching" anim so compile time isn't doomscroll time. Needs a shell-hook or
-  process watch; smaller scope than git-aware.
-- [ ] **Ambient ↔ accountability slider** — one config knob: silent-presence at one end,
-  active goal check-ins at the other. Reframes existing Nudges/Focus intensity, not a new
-  feature file. (Ambient end needs persistent-Clippy — see conflict note below.)
+- [ ] **Respond to commits** — Clippy watches your repo. You commit → Clippy gets happy. No commits for a while → Clippy gets sleepy. (Check `git log` every 15s.)
+- [ ] **Watch the build** — while you're compiling, Clippy looks "waiting" instead of asleep. Stops the doomscroll.
+- [ ] **Presence dial** — one setting: silent company on one end, active check-ins on the other.
 
-## Anti-shame UX (cross-cutting, not a feature file)
+## Keep the tone kind (not shame-inducing)
 
-- [ ] **Matter-of-fact failure tone** — audit all announcement copy. No "Uh oh" / "There's a
-  problem". State cause + fix, flat tone. RSD-aware. Touches every feature's strings + a
-  house-style note in CLAUDE.md.
-- [ ] **Gentle streak language** — any future streak/goal feature uses "building momentum",
-  never punishment for a missed day.
+- [ ] **No "Uh oh"** — all messages use flat, calm tone. State what happened + what to do. No blame.
+- [ ] **No punishment for missed days** — use "building momentum" language, not "you broke your streak".
 
-## One-task triage (time-blindness / choice-tax)
+## Turn brain-dump into one action
 
-- [ ] **Brain-dump → one action** — capture a messy list, Clippy surfaces exactly ONE next
-  action, rest hidden. Kills task-initiation freeze. Extends Quick Capture; needs the
-  list-store the quick-capture follow-ups already want.
+- [ ] **Brain-dump to one task** — dump a messy list → Clippy shows you exactly ONE thing to do next (rest hidden). Breaks the "too many options" freeze.
 
-## Out of scope for current architecture (research ideas that fight the design)
+## Not doing these (conflicts with the design)
 
-- Camera posture / fatigue / screen-distance alerts (Baymin-style): needs AVFoundation
-  camera access, always-on CV, TCC camera prompt, privacy cost. Big dep for a personal app.
-- Persistent on-screen "working" avatar (FocusCat/Ducky ambient double): current design is a
-  corner popup only shown during an announcement — no persistent overlay (per CLAUDE.md,
-  chosen over full-screen wander). Ambient mode = revisit that decision, already deferred
-  under Focus below.
+- **Camera alerts** (posture, fatigue, screen distance) — needs always-on camera access + AI. Privacy cost too high for a personal app.
+- **Persistent Clippy on screen** — current design is corner-popup-only. Making Clippy always visible would be a big redesign.
 
-## Nudge / focus follow-ups (deferred)
+## Future improvements (could-do, not must-do)
 
-- [ ] Configurable idle threshold (hardcoded 5 min in `NudgesFeature`).
-- [ ] Focus: audio "focus jam" loop; persistent ambient Clippy; extract shared input-panel
-  from `CaptureWindow` / `FocusStartWindow`.
+**Nudges/Focus**
+- [ ] Change the 5-minute idle wait time (currently hardcoded).
+- [ ] Add a "focus music" loop for focus sessions.
+- [ ] Let multiple windows share the same input box instead of duplicating code.
 
-## Quick-capture follow-ups (deferred from v1)
-
-- [ ] List / edit / cancel pending reminders (v1 is fire-and-forget — can't see or cancel one).
-- [ ] Durable snooze — snooze currently lives in the Presenter's memory, lost on restart
-  (same tradeoff the calendar feature accepts).
-- [ ] Recurrence — one-shot only today; recurring reminders belong to the routines feature above.
+**Quick Capture**
+- [ ] See and cancel pending reminders (currently fire-and-forget).
+- [ ] Snooze persists after restart (currently lost).
+- [ ] Repeat reminders instead of one-shot (recurring reminders belong in daily routines instead).
