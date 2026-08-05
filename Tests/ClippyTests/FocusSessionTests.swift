@@ -39,4 +39,29 @@ final class FocusSessionTests: XCTestCase {
             "Fix auth bug — under a minute"
         )
     }
+
+    func testProgressFractionZeroAtStart() {
+        XCTAssertEqual(FocusSessionFeature.progressFraction(remaining: 1500, total: 1500), 0)
+    }
+
+    func testProgressFractionOneAtTimeUp() {
+        XCTAssertEqual(FocusSessionFeature.progressFraction(remaining: 0, total: 1500), 1)
+    }
+
+    func testProgressFractionHalfway() {
+        XCTAssertEqual(FocusSessionFeature.progressFraction(remaining: 750, total: 1500), 0.5)
+    }
+
+    func testProgressFractionClampsWhenRemainingExceedsTotal() {
+        XCTAssertEqual(FocusSessionFeature.progressFraction(remaining: 2000, total: 1500), 0)
+    }
+
+    func testProgressFractionClampsWhenRemainingIsNegative() {
+        XCTAssertEqual(FocusSessionFeature.progressFraction(remaining: -30, total: 1500), 1)
+    }
+
+    func testProgressFractionOneWhenTotalIsZeroOrNegative() {
+        XCTAssertEqual(FocusSessionFeature.progressFraction(remaining: 0, total: 0), 1)
+        XCTAssertEqual(FocusSessionFeature.progressFraction(remaining: 10, total: -5), 1)
+    }
 }

@@ -15,6 +15,7 @@ final class ClippyWindow {
     private let sprite: SpriteView
     private let bubble = BubbleView()
     private let statusContainer = NSView()
+    private let progressBar = ProgressBarView()
     private let statusLabel = NSTextField(labelWithString: "")
     private let dragView = DragClickView()
     private var isAnnouncing = false
@@ -55,9 +56,12 @@ final class ClippyWindow {
         statusLabel.maximumNumberOfLines = 1
         statusLabel.lineBreakMode = .byTruncatingTail
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
+        progressBar.translatesAutoresizingMaskIntoConstraints = false
+        progressBar.isHidden = true
 
         dragView.addSubview(bubble)
         dragView.addSubview(statusContainer)
+        statusContainer.addSubview(progressBar)
         statusContainer.addSubview(statusLabel)
         dragView.addSubview(sprite)
         NSLayoutConstraint.activate([
@@ -71,9 +75,13 @@ final class ClippyWindow {
             statusContainer.trailingAnchor.constraint(equalTo: dragView.trailingAnchor, constant: -8),
             statusContainer.leadingAnchor.constraint(greaterThanOrEqualTo: dragView.leadingAnchor, constant: 8),
             statusContainer.bottomAnchor.constraint(equalTo: dragView.bottomAnchor, constant: -8),
+            progressBar.leadingAnchor.constraint(equalTo: statusContainer.leadingAnchor, constant: 8),
+            progressBar.trailingAnchor.constraint(equalTo: statusContainer.trailingAnchor, constant: -8),
+            progressBar.topAnchor.constraint(equalTo: statusContainer.topAnchor, constant: 4),
+            progressBar.heightAnchor.constraint(equalToConstant: 4),
             statusLabel.leadingAnchor.constraint(equalTo: statusContainer.leadingAnchor, constant: 8),
             statusLabel.trailingAnchor.constraint(equalTo: statusContainer.trailingAnchor, constant: -8),
-            statusLabel.topAnchor.constraint(equalTo: statusContainer.topAnchor, constant: 4),
+            statusLabel.topAnchor.constraint(equalTo: progressBar.bottomAnchor, constant: 4),
             statusLabel.bottomAnchor.constraint(equalTo: statusContainer.bottomAnchor, constant: -4),
         ])
 
@@ -106,11 +114,19 @@ final class ClippyWindow {
     }
 
     /// Shows/hides the persistent focus-session status, independent of the
-    /// announcement queue and of idle/announcing state. Nil or empty hides it.
-    func setStatus(_ text: String?) {
+    /// announcement queue and of idle/announcing state. Nil or empty text hides
+    /// the whole pill. `progress` (0...1) shows a fill bar above the text; nil
+    /// hides the bar and shows text only.
+    func setStatus(_ text: String?, progress: Double? = nil) {
         if let text, !text.isEmpty {
             statusLabel.stringValue = text
             statusContainer.isHidden = false
+            if let progress {
+                progressBar.isHidden = false
+                progressBar.progress = progress
+            } else {
+                progressBar.isHidden = true
+            }
         } else {
             statusContainer.isHidden = true
         }

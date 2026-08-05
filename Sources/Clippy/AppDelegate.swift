@@ -24,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         announcer = Announcer(
             deliver: { [presenter] announcement in presenter?.enqueue(announcement) },
-            deliverStatus: { [presenter] text in presenter?.setStatus(text) }
+            deliverStatus: { [presenter] text, progress in presenter?.setStatus(text, progress: progress) }
         )
 
         setUpStatusItem()

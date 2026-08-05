@@ -22,8 +22,8 @@ final class Presenter {
 
     /// Passes straight through to the window, bypassing the announcement queue —
     /// a status update must not wait for a queued announcement to drain.
-    func setStatus(_ text: String?) {
-        window.setStatus(text)
+    func setStatus(_ text: String?, progress: Double? = nil) {
+        window.setStatus(text, progress: progress)
     }
 
     /// Shows/hides the window directly, independent of the announcement queue —

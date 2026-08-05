@@ -69,7 +69,8 @@ final class FocusSessionFeature: Feature {
         statusTickTask?.cancel()
         announcer.announce(Self.startAnnouncement(goal: goal, minutes: minutes))
 
-        let endDate = Date().addingTimeInterval(minutes * 60)
+        let total = minutes * 60
+        let endDate = Date().addingTimeInterval(total)
         statusTickTask = Task {
             while !Task.isCancelled {
                 let remaining = endDate.timeIntervalSinceNow
@@ -77,7 +78,10 @@ final class FocusSessionFeature: Feature {
                     announcer.setStatus(nil)
                     return
                 }
-                announcer.setStatus(Self.statusText(goal: goal, remaining: remaining))
+                announcer.setStatus(
+                    Self.statusText(goal: goal, remaining: remaining),
+                    progress: Self.progressFraction(remaining: remaining, total: total)
+                )
                 let sleepDuration = min(Self.statusTickInterval, remaining)
                 try? await Task.sleep(nanoseconds: UInt64(sleepDuration * 1_000_000_000))
             }
@@ -127,6 +131,14 @@ final class FocusSessionFeature: Feature {
         }
         let minutes = Int((clamped / 60).rounded(.up))
         return "\(goal) — \(minutes)m left"
+    }
+
+    /// Elapsed fraction of the session, clamped to 0...1. `total <= 0` (a
+    /// degenerate 0-minute session) returns 1 rather than dividing by zero.
+    static func progressFraction(remaining: TimeInterval, total: TimeInterval) -> Double {
+        guard total > 0 else { return 1 }
+        let elapsed = total - remaining
+        return max(0, min(1, elapsed / total))
     }
 
     private static func startAnnouncement(goal: String, minutes: Double) -> Announcement {

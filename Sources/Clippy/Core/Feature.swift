@@ -28,9 +28,9 @@ struct FeatureContext {
 /// persistent status. Hops to the main thread before touching the presenter.
 final class Announcer {
     private let deliver: (Announcement) -> Void
-    private let deliverStatus: (String?) -> Void
+    private let deliverStatus: (String?, Double?) -> Void
 
-    init(deliver: @escaping (Announcement) -> Void, deliverStatus: @escaping (String?) -> Void) {
+    init(deliver: @escaping (Announcement) -> Void, deliverStatus: @escaping (String?, Double?) -> Void) {
         self.deliver = deliver
         self.deliverStatus = deliverStatus
     }
@@ -42,10 +42,11 @@ final class Announcer {
     }
 
     /// Sets or clears a persistent status shown alongside Clippy, independent of
-    /// the announcement queue. Pass nil to clear.
-    func setStatus(_ text: String?) {
+    /// the announcement queue. Pass nil text to clear. `progress` (0...1) shows a
+    /// fill bar alongside the text; nil hides the bar and shows text only.
+    func setStatus(_ text: String?, progress: Double? = nil) {
         DispatchQueue.main.async { [deliverStatus] in
-            deliverStatus(text)
+            deliverStatus(text, progress)
         }
     }
 }

@@ -8,19 +8,22 @@ struct AppConfig: Codable {
     var focus: FocusConfig
     var breakTracker: BreakTrackerConfig
     var launcher: LauncherConfig
+    var activityLog: ActivityLogConfig
 
     init(
         calendar: CalendarConfig = CalendarConfig(),
         nudges: [NudgeConfig] = NudgeConfig.defaults,
         focus: FocusConfig = FocusConfig(),
         breakTracker: BreakTrackerConfig = BreakTrackerConfig(),
-        launcher: LauncherConfig = LauncherConfig()
+        launcher: LauncherConfig = LauncherConfig(),
+        activityLog: ActivityLogConfig = ActivityLogConfig()
     ) {
         self.calendar = calendar
         self.nudges = nudges
         self.focus = focus
         self.breakTracker = breakTracker
         self.launcher = launcher
+        self.activityLog = activityLog
     }
 
     init(from decoder: Decoder) throws {
@@ -30,6 +33,7 @@ struct AppConfig: Codable {
         focus = try container.decodeIfPresent(FocusConfig.self, forKey: .focus) ?? FocusConfig()
         breakTracker = try container.decodeIfPresent(BreakTrackerConfig.self, forKey: .breakTracker) ?? BreakTrackerConfig()
         launcher = try container.decodeIfPresent(LauncherConfig.self, forKey: .launcher) ?? LauncherConfig()
+        activityLog = try container.decodeIfPresent(ActivityLogConfig.self, forKey: .activityLog) ?? ActivityLogConfig()
     }
 }
 
@@ -51,6 +55,27 @@ struct CalendarConfig: Codable {
         enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
         leadMinutes = try container.decodeIfPresent([Double].self, forKey: .leadMinutes) ?? [1, 0]
         calendars = try container.decodeIfPresent([String].self, forKey: .calendars)
+    }
+}
+
+/// Silent background logging of active-vs-idle time and meeting overlap,
+/// one row per hour, to a monthly CSV. Off by default since it persists
+/// granular at-the-keyboard data continuously.
+struct ActivityLogConfig: Codable {
+    var enabled: Bool
+    /// Idle seconds below which a poll counts as "active". Must be >= the
+    /// feature's 15s poll interval, or continuous activity gets under-counted.
+    var idleThresholdSeconds: Double
+
+    init(enabled: Bool = false, idleThresholdSeconds: Double = 30) {
+        self.enabled = enabled
+        self.idleThresholdSeconds = idleThresholdSeconds
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? false
+        idleThresholdSeconds = try container.decodeIfPresent(Double.self, forKey: .idleThresholdSeconds) ?? 30
     }
 }
 

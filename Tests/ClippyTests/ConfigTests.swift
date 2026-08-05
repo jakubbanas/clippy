@@ -78,4 +78,22 @@ final class ConfigTests: XCTestCase {
         XCTAssertTrue(config.focus.midCheckIn)
         XCTAssertTrue(config.focus.enabled)
     }
+
+    func testActivityLogDefaults() throws {
+        let config = try decode("{}")
+        XCTAssertFalse(config.activityLog.enabled)
+        XCTAssertEqual(config.activityLog.idleThresholdSeconds, 30)
+    }
+
+    func testPartialActivityLogKeepsDefaults() throws {
+        let config = try decode(#"{ "activity_log": { "enabled": true } }"#)
+        XCTAssertTrue(config.activityLog.enabled)
+        XCTAssertEqual(config.activityLog.idleThresholdSeconds, 30)
+    }
+
+    func testFullActivityLogConfig() throws {
+        let config = try decode(#"{ "activity_log": { "enabled": true, "idle_threshold_seconds": 45 } }"#)
+        XCTAssertTrue(config.activityLog.enabled)
+        XCTAssertEqual(config.activityLog.idleThresholdSeconds, 45)
+    }
 }

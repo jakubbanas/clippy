@@ -5,7 +5,8 @@ enum Registry {
             CalendarFeature(),
             NudgesFeature(),
             FocusSessionFeature(),
-            BreakTrackerFeature()
+            BreakTrackerFeature(),
+            ActivityLogFeature()
         ]
     }
 }
