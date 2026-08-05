@@ -8,7 +8,7 @@ Clippy — a macOS-only menu-bar app that pops up the classic Microsoft Office a
 
 ## Commands
 
-This environment has no Bash tool available to Claude — all shell commands must be run by the user (prefixed with `!` in the CLI) or delegated to a subagent.
+Run shell commands directly with the Bash tool. Never delegate shell work to a subagent — past subagent test runs stalled and were rejected; run it inline, or hand the user the exact command for `!`.
 
 ```bash
 swift test                          # build + run all unit tests
@@ -20,6 +20,11 @@ open dist/Clippy.app                # launch after building
 To run a single test: `swift test --filter ClippyTests.CalendarFeatureTests/testFiresLeadReminderOneMinuteBefore` (or any `TestClass/testMethod` / `TestClass` substring).
 
 There is no linter configured.
+
+## Working with this repo
+
+- **Never run `git`** (`add`, `commit`, `status`, `push`) — the user handles git themselves. This includes skill workflows whose last step is a commit (`superpowers:brainstorming`, `superpowers:writing-plans`): write the file, skip the commit, say it's uncommitted.
+- **Look for an existing mechanism before building a new one.** Features share low-level helpers — e.g. `UserActivity.idleSeconds()` in `Sources/Clippy/Features/BreakTracker/` already does idle detection. Check `Sources/Clippy/Features/` before writing or re-verifying a new API.
 
 Because EventKit permission (TCC) requires a properly identified app bundle, calendar-related behavior (permission prompt, event reads) only works from the built `dist/Clippy.app`, not from the raw `swift build` binary. `tccutil reset Calendar com.jbanas.clippy` re-triggers the permission prompt for testing.
 
