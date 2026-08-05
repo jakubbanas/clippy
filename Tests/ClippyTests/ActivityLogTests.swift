@@ -185,4 +185,88 @@ final class ActivityLogTests: XCTestCase {
         let real = makeActivityEvent(startOffset: 600, endOffset: 1200, from: hourStart)
         XCTAssertTrue(ActivityLogFeature.hasMeeting(events: [allDay, declined, real], hourStart: hourStart))
     }
+
+    // MARK: - ActivityLog.weekStats
+
+    private func pacificCalendar() -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        calendar.firstWeekday = 2 // Monday
+        return calendar
+    }
+
+    func testWeekStatsSumsActiveAndObservedAcrossHoursPerDay() {
+        let calendar = pacificCalendar()
+        // Wednesday 2026-08-05; week is Mon 2026-08-03 ... Sun 2026-08-09.
+        let reference = calendar.date(from: DateComponents(year: 2026, month: 8, day: 5, hour: 12))!
+        let rows: [ActivityLogKey: ActivityLogRow] = [
+            ActivityLogKey(date: "2026-08-03", hour: 9): ActivityLogRow(activeSeconds: 1800, observedSeconds: 3600, hadMeeting: false),
+            ActivityLogKey(date: "2026-08-03", hour: 10): ActivityLogRow(activeSeconds: 900, observedSeconds: 1800, hadMeeting: false),
+        ]
+        let week = ActivityLog.weekStats(from: rows, for: reference, calendar: calendar)
+
+        XCTAssertEqual(week.count, 7)
+        let days = week.map { calendar.component(.day, from: $0.date) }
+        XCTAssertEqual(days, [3, 4, 5, 6, 7, 8, 9])
+        XCTAssertEqual(week[0].activePercent, 0.5) // (1800+900)/(3600+1800)
+        for other in week.dropFirst() {
+            XCTAssertNil(other.activePercent)
+        }
+    }
+
+    func testWeekStatsNilWhenNoObservedTimeAnyDay() {
+        let calendar = pacificCalendar()
+        let reference = calendar.date(from: DateComponents(year: 2026, month: 8, day: 5, hour: 12))!
+        let week = ActivityLog.weekStats(from: [:], for: reference, calendar: calendar)
+        XCTAssertEqual(week.count, 7)
+        XCTAssertTrue(week.allSatisfy { $0.activePercent == nil })
+    }
+
+    func testWeekStatsWorksAcrossKeysFromDifferentMonths() {
+        let calendar = pacificCalendar()
+        // Wednesday 2026-07-29; week is Mon 2026-07-27 ... Sun 2026-08-02, spanning July/August.
+        let reference = calendar.date(from: DateComponents(year: 2026, month: 7, day: 29, hour: 12))!
+        let rows: [ActivityLogKey: ActivityLogRow] = [
+            ActivityLogKey(date: "2026-07-29", hour: 5): ActivityLogRow(activeSeconds: 300, observedSeconds: 600, hadMeeting: false),
+            ActivityLogKey(date: "2026-08-01", hour: 10): ActivityLogRow(activeSeconds: 100, observedSeconds: 100, hadMeeting: false),
+        ]
+        let week = ActivityLog.weekStats(from: rows, for: reference, calendar: calendar)
+
+        let days = week.map { calendar.component(.day, from: $0.date) }
+        XCTAssertEqual(days, [27, 28, 29, 30, 31, 1, 2])
+        XCTAssertEqual(week[2].activePercent, 0.5) // July 29
+        XCTAssertEqual(week[5].activePercent, 1.0) // Aug 1
+        XCTAssertNil(week[0].activePercent)
+    }
+
+    // MARK: - ActivityLog.dayStats
+
+    func testDayStatsPerHourWithActivePercentAndHadMeetingPassthrough() {
+        let calendar = pacificCalendar()
+        let reference = calendar.date(from: DateComponents(year: 2026, month: 8, day: 5, hour: 12))!
+        let rows: [ActivityLogKey: ActivityLogRow] = [
+            ActivityLogKey(date: "2026-08-05", hour: 9): ActivityLogRow(activeSeconds: 1800, observedSeconds: 3600, hadMeeting: true),
+            ActivityLogKey(date: "2026-08-05", hour: 11): ActivityLogRow(activeSeconds: 300, observedSeconds: 300, hadMeeting: false),
+        ]
+        let day = ActivityLog.dayStats(from: rows, for: reference, calendar: calendar)
+
+        XCTAssertEqual(day.count, 24)
+        XCTAssertEqual(day[9].hour, 9)
+        XCTAssertEqual(day[9].activePercent, 0.5)
+        XCTAssertEqual(day[9].hadMeeting, true)
+        XCTAssertNil(day[10].activePercent, "no row for hour 10 -> nil, not 0%")
+        XCTAssertEqual(day[10].hadMeeting, false)
+        XCTAssertEqual(day[11].activePercent, 1.0)
+    }
+
+    func testDayStatsNilWhenRowHasZeroObservedSeconds() {
+        let calendar = pacificCalendar()
+        let reference = calendar.date(from: DateComponents(year: 2026, month: 8, day: 5, hour: 12))!
+        let rows: [ActivityLogKey: ActivityLogRow] = [
+            ActivityLogKey(date: "2026-08-05", hour: 3): ActivityLogRow(activeSeconds: 0, observedSeconds: 0, hadMeeting: true),
+        ]
+        let day = ActivityLog.dayStats(from: rows, for: reference, calendar: calendar)
+        XCTAssertNil(day[3].activePercent, "zero observed seconds must not divide-by-zero into 0%")
+        XCTAssertEqual(day[3].hadMeeting, true, "hadMeeting still passes through even with no observed time")
+    }
 }

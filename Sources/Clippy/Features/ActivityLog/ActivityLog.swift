@@ -108,3 +108,75 @@ enum ActivityLog {
         }
     }
 }
+
+/// One day's aggregated activity, for the week chart. `activePercent` is
+/// `activeSeconds / observedSeconds` summed across that day's hourly rows;
+/// nil if the day has zero observed seconds (no data, not "0% active").
+struct DayStat: Equatable {
+    let date: Date
+    let activePercent: Double?
+}
+
+/// One hour's activity, for the day chart. Same nil-vs-zero rule as `DayStat`.
+struct HourStat: Equatable {
+    let hour: Int
+    let activePercent: Double?
+    let hadMeeting: Bool
+}
+
+extension ActivityLog {
+    /// "yyyy-MM-dd" for `date` in `calendar`'s time zone — matches the
+    /// format `ActivityLogKey.date` and `ActivityLogFeature.bucketKey` use.
+    private static func dateString(for date: Date, calendar: Calendar) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: date)
+    }
+
+    /// 7 entries, Monday..Sunday per `calendar.firstWeekday`, for the week
+    /// containing `date`. Callers are responsible for loading/merging
+    /// whichever monthly CSV(s) the week spans before passing `rows` in —
+    /// this function only looks rows up by key, so it doesn't care which
+    /// file they came from.
+    static func weekStats(
+        from rows: [ActivityLogKey: ActivityLogRow],
+        for date: Date,
+        calendar: Calendar = .current
+    ) -> [DayStat] {
+        guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: date) else { return [] }
+        let weekStart = calendar.startOfDay(for: weekInterval.start)
+        return (0..<7).compactMap { offset -> DayStat? in
+            guard let day = calendar.date(byAdding: .day, value: offset, to: weekStart) else { return nil }
+            let dayString = dateString(for: day, calendar: calendar)
+            var active = 0.0
+            var observed = 0.0
+            for hour in 0..<24 {
+                guard let row = rows[ActivityLogKey(date: dayString, hour: hour)] else { continue }
+                active += row.activeSeconds
+                observed += row.observedSeconds
+            }
+            return DayStat(date: day, activePercent: observed > 0 ? active / observed : nil)
+        }
+    }
+
+    /// 24 entries, hour 0..23, for the local calendar day containing `date`.
+    static func dayStats(
+        from rows: [ActivityLogKey: ActivityLogRow],
+        for date: Date,
+        calendar: Calendar = .current
+    ) -> [HourStat] {
+        let dayString = dateString(for: date, calendar: calendar)
+        return (0..<24).map { hour in
+            let row = rows[ActivityLogKey(date: dayString, hour: hour)]
+            let activePercent: Double?
+            if let row, row.observedSeconds > 0 {
+                activePercent = row.activeSeconds / row.observedSeconds
+            } else {
+                activePercent = nil
+            }
+            return HourStat(hour: hour, activePercent: activePercent, hadMeeting: row?.hadMeeting ?? false)
+        }
+    }
+}

@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var loginItem: NSMenuItem!
     private var hideClippyItem: NSMenuItem!
     private var isClippyHidden = false
+    private var statsWindow: ActivityStatsWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -62,6 +63,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let reloadItem = NSMenuItem(title: "Reload Config", action: #selector(reloadConfig), keyEquivalent: "")
         reloadItem.target = self
         menu.addItem(reloadItem)
+        let activityItem = NSMenuItem(title: "Show Activity", action: #selector(showActivity), keyEquivalent: "")
+        activityItem.target = self
+        menu.addItem(activityItem)
         hideClippyItem = NSMenuItem(title: "Hide Clippy", action: #selector(toggleClippyVisibility), keyEquivalent: "")
         hideClippyItem.target = self
         menu.addItem(hideClippyItem)
@@ -81,6 +85,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func reloadConfig() {
         reloadFeatures()
+    }
+
+    @objc private func showActivity() {
+        let calendar = Calendar.current
+        let now = Date()
+
+        let dayRows = ActivityLog.load(from: ActivityLog.url(for: now, calendar: calendar))
+        let day = ActivityLog.dayStats(from: dayRows, for: now, calendar: calendar)
+
+        let weekInterval = calendar.dateInterval(of: .weekOfYear, for: now) ?? DateInterval(start: now, duration: 0)
+        let weekEnd = calendar.date(byAdding: .second, value: -1, to: weekInterval.end) ?? weekInterval.start
+        let startURL = ActivityLog.url(for: weekInterval.start, calendar: calendar)
+        let endURL = ActivityLog.url(for: weekEnd, calendar: calendar)
+        var weekRows = ActivityLog.load(from: startURL)
+        if endURL != startURL {
+            weekRows.merge(ActivityLog.load(from: endURL)) { _, new in new }
+        }
+        let week = ActivityLog.weekStats(from: weekRows, for: now, calendar: calendar)
+
+        if statsWindow == nil {
+            statsWindow = ActivityStatsWindow()
+        }
+        statsWindow?.show(week: week, day: day)
     }
 
     @objc private func toggleClippyVisibility() {
