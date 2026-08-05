@@ -78,7 +78,8 @@ final class FocusSessionFeature: Feature {
                     return
                 }
                 announcer.setStatus(Self.statusText(goal: goal, remaining: remaining))
-                try? await Task.sleep(nanoseconds: UInt64(Self.statusTickInterval * 1_000_000_000))
+                let sleepDuration = min(Self.statusTickInterval, remaining)
+                try? await Task.sleep(nanoseconds: UInt64(sleepDuration * 1_000_000_000))
             }
         }
 
@@ -93,8 +94,6 @@ final class FocusSessionFeature: Feature {
                 case .mid:
                     announcer.announce(Self.midAnnouncement(goal: goal))
                 case .end:
-                    self?.statusTickTask?.cancel()
-                    announcer.setStatus(nil)
                     announcer.announce(Self.endAnnouncement(goal: goal) {
                         self?.beginSession(goal: goal, minutes: minutes)
                     })
