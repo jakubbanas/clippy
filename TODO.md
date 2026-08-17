@@ -12,7 +12,7 @@ Adding a feature: one new folder in `Features/` + one line in `Registry.swift`. 
 - [x] **Quick capture** — hotkey → type something → Clippy reminds you later. Fixes the "thought vanishes" problem.
 - [x] **Nudges** — water reminders, break reminders. Turn each on/off. Quiet when you're away.
 - [x] **Focus sessions** — say what you're doing, set a timer, Clippy stays silent. Says "more rounds?" at the end.
-- [x] **Command launcher** — one hotkey opens a menu with all commands.
+- [x] **Command launcher** — one hotkey opens a fuzzy search window: apps, commands, clipboard. Frecency-ranked.
 - [x] **Break tracker** — "you were gone 12 min" when you come back (≥15 min away).
 
 ## Remember things (before they slip away)
@@ -55,6 +55,13 @@ Adding a feature: one new folder in `Features/` + one line in `Registry.swift`. 
 - [ ] Change the 5-minute idle wait time (currently hardcoded).
 - [ ] Add a "focus music" loop for focus sessions.
 - [ ] Let multiple windows share the same input box instead of duplicating code.
+
+**Launcher**
+- [ ] Calculator / unit conversion results.
+- [ ] File search via `NSMetadataQuery`.
+- [ ] Auto-paste on Enter (needs Accessibility permission).
+- [ ] Window management (needs Accessibility permission).
+- [ ] Watch the filesystem so newly installed apps appear without "Reload Config".
 
 **Quick Capture**
 - [ ] See and cancel pending reminders (currently fire-and-forget).

@@ -47,7 +47,7 @@ final class FocusSessionFeature: Feature {
 
     func commands() -> [Command] {
         guard enabled else { return [] }
-        return [Command(title: "Start focus") { [weak self] in self?.showStartPanel() }]
+        return [Command(id: "focus:start", title: "Start focus") { [weak self] in self?.showStartPanel() }]
     }
 
     private func showStartPanel() {

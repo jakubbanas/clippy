@@ -13,10 +13,17 @@ protocol Feature {
     /// User-triggerable actions this feature contributes to the command launcher.
     /// Call after `start(context:)`. Defaults to none.
     func commands() -> [Command]
+    /// Query-dependent rows for the launcher — apps matching what was typed,
+    /// clips matching what was typed. Called on every keystroke, so it must be
+    /// fast and synchronous: match against an in-memory cache, never disk.
+    /// An empty query means "the window just opened"; return your few most
+    /// useful rows, or none.
+    func searchItems(query: String) -> [Command]
 }
 
 extension Feature {
     func commands() -> [Command] { [] }
+    func searchItems(query: String) -> [Command] { [] }
 }
 
 struct FeatureContext {

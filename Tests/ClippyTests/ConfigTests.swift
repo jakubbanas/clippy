@@ -96,4 +96,24 @@ final class ConfigTests: XCTestCase {
         XCTAssertTrue(config.activityLog.enabled)
         XCTAssertEqual(config.activityLog.idleThresholdSeconds, 45)
     }
+
+    func testAppLauncherDefaultsWhenKeyIsAbsent() throws {
+        XCTAssertTrue(try decode("{}").appLauncher.enabled)
+    }
+
+    func testAppLauncherCanBeDisabled() throws {
+        XCTAssertFalse(try decode(#"{ "app_launcher": { "enabled": false } }"#).appLauncher.enabled)
+    }
+
+    func testClipboardDefaultsWhenKeyIsAbsent() throws {
+        let config = try decode("{}")
+        XCTAssertTrue(config.clipboard.enabled)
+        XCTAssertEqual(config.clipboard.maxItems, 500)
+    }
+
+    func testClipboardHonorsAPartialConfig() throws {
+        let config = try decode(#"{ "clipboard": { "max_items": 10 } }"#)
+        XCTAssertEqual(config.clipboard.maxItems, 10)
+        XCTAssertTrue(config.clipboard.enabled, "an absent key keeps its default")
+    }
 }

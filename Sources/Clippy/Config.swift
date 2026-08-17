@@ -9,6 +9,8 @@ struct AppConfig: Codable {
     var breakTracker: BreakTrackerConfig
     var launcher: LauncherConfig
     var activityLog: ActivityLogConfig
+    var appLauncher: AppLauncherConfig
+    var clipboard: ClipboardConfig
 
     init(
         calendar: CalendarConfig = CalendarConfig(),
@@ -16,7 +18,9 @@ struct AppConfig: Codable {
         focus: FocusConfig = FocusConfig(),
         breakTracker: BreakTrackerConfig = BreakTrackerConfig(),
         launcher: LauncherConfig = LauncherConfig(),
-        activityLog: ActivityLogConfig = ActivityLogConfig()
+        activityLog: ActivityLogConfig = ActivityLogConfig(),
+        appLauncher: AppLauncherConfig = AppLauncherConfig(),
+        clipboard: ClipboardConfig = ClipboardConfig()
     ) {
         self.calendar = calendar
         self.nudges = nudges
@@ -24,6 +28,8 @@ struct AppConfig: Codable {
         self.breakTracker = breakTracker
         self.launcher = launcher
         self.activityLog = activityLog
+        self.appLauncher = appLauncher
+        self.clipboard = clipboard
     }
 
     init(from decoder: Decoder) throws {
@@ -34,6 +40,8 @@ struct AppConfig: Codable {
         breakTracker = try container.decodeIfPresent(BreakTrackerConfig.self, forKey: .breakTracker) ?? BreakTrackerConfig()
         launcher = try container.decodeIfPresent(LauncherConfig.self, forKey: .launcher) ?? LauncherConfig()
         activityLog = try container.decodeIfPresent(ActivityLogConfig.self, forKey: .activityLog) ?? ActivityLogConfig()
+        appLauncher = try container.decodeIfPresent(AppLauncherConfig.self, forKey: .appLauncher) ?? AppLauncherConfig()
+        clipboard = try container.decodeIfPresent(ClipboardConfig.self, forKey: .clipboard) ?? ClipboardConfig()
     }
 }
 
@@ -108,6 +116,42 @@ struct LauncherConfig: Codable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         hotkey = try container.decodeIfPresent(String.self, forKey: .hotkey) ?? "⌥Space"
+    }
+}
+
+/// Searchable clipboard history. Persisted in plaintext at
+/// `com.jbanas.clippy/clipboard.jsonl` (mode 0600) — an accepted tradeoff, since
+/// history that dies on restart is not useful. Password managers mark their
+/// pasteboard writes as concealed and are skipped; a secret you typed and copied
+/// by hand is not. Set `enabled: false` to turn it off entirely.
+struct ClipboardConfig: Codable {
+    var enabled: Bool
+    /// Oldest clips beyond this are dropped on every write.
+    var maxItems: Int
+
+    init(enabled: Bool = true, maxItems: Int = 500) {
+        self.enabled = enabled
+        self.maxItems = maxItems
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+        maxItems = try container.decodeIfPresent(Int.self, forKey: .maxItems) ?? 500
+    }
+}
+
+/// Fuzzy app launching in the command launcher.
+struct AppLauncherConfig: Codable {
+    var enabled: Bool
+
+    init(enabled: Bool = true) {
+        self.enabled = enabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        enabled = try container.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
     }
 }
 

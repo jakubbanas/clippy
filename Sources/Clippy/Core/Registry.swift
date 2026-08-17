@@ -6,7 +6,9 @@ enum Registry {
             NudgesFeature(),
             FocusSessionFeature(),
             BreakTrackerFeature(),
-            ActivityLogFeature()
+            ActivityLogFeature(),
+            AppLauncherFeature(),
+            ClipboardFeature()
         ]
     }
 }

@@ -1,16 +1,30 @@
 import AppKit
 
-/// Owns the single global hotkey. On press, runs the sole contributed command
-/// directly — or, if more than one feature contributes a command, pops a menu to
-/// pick between them. This replaces per-feature hotkeys, so there's only one combo
-/// to register (and no cross-feature clashes).
+/// Owns the single global hotkey and the search window it opens.
+///
+/// Static rows come from each feature's `commands()`, collected once per
+/// configure; query-dependent rows come from `searchItems(query:)` on every
+/// keystroke. Ranking lives in `LauncherRanking`; this class only fans out,
+/// records frecency, and runs what was picked.
 final class CommandLauncher {
     private var hotKey: HotKey?
-    private var commands: [Command] = []
+    private var features: [Feature] = []
+    private var staticCommands: [Command] = []
+    private var frecency: [String: FrecencyEntry] = [:]
+    private let window = LauncherWindow()
 
-    /// (Re)binds the hotkey and refreshes the command list. Safe to call on reload.
-    func configure(hotkey: String, commands: [Command]) {
-        self.commands = commands
+    init() {
+        window.onQueryChanged = { [weak self] query in self?.rank(query) ?? [] }
+        window.onPick = { [weak self] command in self?.run(command) }
+    }
+
+    /// (Re)binds the hotkey and refreshes the command sources. Safe to call on
+    /// reload — `AppDelegate.reloadFeatures` calls `stop()` first.
+    func configure(hotkey: String, features: [Feature]) {
+        self.features = features
+        self.staticCommands = features.flatMap { $0.commands() }
+        self.frecency = Frecency.load(from: Frecency.url)
+
         hotKey?.unregister()
         hotKey = nil
         guard let combo = HotKeyCombo.parse(hotkey) else {
@@ -18,43 +32,36 @@ final class CommandLauncher {
             return
         }
         hotKey = HotKey(keyCode: combo.keyCode, modifiers: combo.modifiers) { [weak self] in
-            self?.trigger()
+            self?.window.show()
         }
     }
 
     func stop() {
         hotKey?.unregister()
         hotKey = nil
+        window.close()
+        features = []
+        staticCommands = []
     }
 
-    private func trigger() {
-        if commands.count == 1 {
-            commands[0].perform()
-        } else {
-            showMenu()
+    private func rank(_ query: String) -> [LauncherSection] {
+        let dynamic = features.flatMap { $0.searchItems(query: query) }
+        return LauncherRanking.sections(
+            for: query,
+            commands: staticCommands + dynamic,
+            frecency: frecency,
+            now: Date()
+        )
+    }
+
+    private func run(_ command: Command) {
+        // Clips are skipped: their ids are timestamps that never recur, so an
+        // entry could never be hit twice — it would only grow the file forever.
+        // Clips are already recency-ordered by the feature.
+        if command.section != CommandSection.clipboard {
+            frecency = Frecency.record(frecency, id: command.id, now: Date())
+            Frecency.save(frecency, to: Frecency.url)
         }
-    }
-
-    private func showMenu() {
-        guard !commands.isEmpty else { return }
-        let menu = NSMenu()
-        for (index, command) in commands.enumerated() {
-            let item = NSMenuItem(
-                title: command.title,
-                action: #selector(pick(_:)),
-                keyEquivalent: index < 9 ? String(index + 1) : ""
-            )
-            item.target = self
-            item.keyEquivalentModifierMask = [] // bare "1"/"2", not ⌘1
-            item.tag = index
-            menu.addItem(item)
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
-    }
-
-    @objc private func pick(_ sender: NSMenuItem) {
-        guard commands.indices.contains(sender.tag) else { return }
-        commands[sender.tag].perform()
+        command.perform()
     }
 }

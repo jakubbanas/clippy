@@ -39,7 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         for feature in features {
             feature.start(context: context)
         }
-        launcher.configure(hotkey: config.launcher.hotkey, commands: features.flatMap { $0.commands() })
+        launcher.configure(hotkey: config.launcher.hotkey, features: features)
     }
 
     private func reloadFeatures() {
