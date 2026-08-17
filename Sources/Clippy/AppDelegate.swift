@@ -1,7 +1,7 @@
 import AppKit
 import ServiceManagement
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private var presenter: Presenter!
     private var announcer: Announcer!
@@ -10,7 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var loginItem: NSMenuItem!
     private var hideClippyItem: NSMenuItem!
     private var isClippyHidden = false
-    private var statsWindow: ActivityStatsWindow?
+    private let activityChartView = ActivityStatsView(frame: NSRect(x: 0, y: 0, width: 320, height: 260))
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -53,6 +53,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.title = "📎"
 
         let menu = NSMenu()
+        menu.delegate = self
+        let activityItem = NSMenuItem()
+        activityItem.view = activityChartView
+        activityItem.isEnabled = false
+        menu.addItem(activityItem)
+        menu.addItem(.separator())
         let testItem = NSMenuItem(title: "Test Clippy", action: #selector(testClippy), keyEquivalent: "t")
         testItem.target = self
         menu.addItem(testItem)
@@ -63,9 +69,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let reloadItem = NSMenuItem(title: "Reload Config", action: #selector(reloadConfig), keyEquivalent: "")
         reloadItem.target = self
         menu.addItem(reloadItem)
-        let activityItem = NSMenuItem(title: "Show Activity", action: #selector(showActivity), keyEquivalent: "")
-        activityItem.target = self
-        menu.addItem(activityItem)
         hideClippyItem = NSMenuItem(title: "Hide Clippy", action: #selector(toggleClippyVisibility), keyEquivalent: "")
         hideClippyItem.target = self
         menu.addItem(hideClippyItem)
@@ -87,7 +90,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         reloadFeatures()
     }
 
-    @objc private func showActivity() {
+    /// Recomputes the activity charts right before the menu opens, since the
+    /// menu (and its embedded chart view) stays alive for the app's whole
+    /// run — data would go stale if only computed once at construction.
+    func menuWillOpen(_ menu: NSMenu) {
         let calendar = Calendar.current
         let now = Date()
 
@@ -104,10 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         let week = ActivityLog.weekStats(from: weekRows, for: now, calendar: calendar)
 
-        if statsWindow == nil {
-            statsWindow = ActivityStatsWindow()
-        }
-        statsWindow?.show(week: week, day: day)
+        activityChartView.configure(week: week, day: day)
     }
 
     @objc private func toggleClippyVisibility() {
