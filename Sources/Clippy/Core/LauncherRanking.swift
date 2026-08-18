@@ -51,9 +51,11 @@ enum LauncherRanking {
             ranked.append((LauncherSection(title: title, commands: capped), best))
         }
         ranked.sort { left, right in
-            left.best == right.best
-                ? left.section.title < right.section.title
-                : left.best > right.best
+            if left.best != right.best { return left.best > right.best }
+            let leftPriority = CommandSection.priority(of: left.section.title)
+            let rightPriority = CommandSection.priority(of: right.section.title)
+            if leftPriority != rightPriority { return leftPriority < rightPriority }
+            return left.section.title < right.section.title
         }
         return ranked.map { $0.section }
     }

@@ -35,6 +35,19 @@ enum Frecency {
         return min(entry.uses, 10) * multiplier
     }
 
+    /// Ids by use count descending — the "top apps" list for the empty-query
+    /// first view. Recency breaks ties, then the id itself, so the order is
+    /// deterministic. Unlike `boost`, this deliberately ignores decay: these are
+    /// the apps you use most, not the ones you touched last.
+    static func topUsed(_ store: [String: FrecencyEntry], limit: Int) -> [String] {
+        let sorted = store.sorted { left, right in
+            if left.value.uses != right.value.uses { return left.value.uses > right.value.uses }
+            if left.value.lastUsed != right.value.lastUsed { return left.value.lastUsed > right.value.lastUsed }
+            return left.key < right.key
+        }
+        return sorted.prefix(limit).map { $0.key }
+    }
+
     static func record(
         _ store: [String: FrecencyEntry],
         id: String,

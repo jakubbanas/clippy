@@ -112,6 +112,34 @@ final class LauncherRankingTests: XCTestCase {
         ])
     }
 
+    /// Every row scores 0 on an empty query, so section order comes entirely
+    /// from the declared priority — not from the titles, which would put
+    /// Clipboard above Commands and Top Apps last.
+    func testEmptyQueryOrdersSectionsByPriorityNotAlphabetically() {
+        let commands = fixture + [command("app:top", "Slack", CommandSection.topApps)]
+        let sections = LauncherRanking.sections(
+            for: "", commands: commands, frecency: [:], now: now
+        )
+        XCTAssertEqual(sections.map(\.title), [
+            CommandSection.topApps,
+            CommandSection.commands,
+            CommandSection.applications,
+            CommandSection.clipboard,
+        ])
+    }
+
+    /// Priority is only a tie-break: a better match still wins the top slot.
+    func testScoreStillBeatsSectionPriority() {
+        let commands = [
+            command("app:top", "Zebra", CommandSection.topApps),
+            command("app:mail", "Mail", CommandSection.applications),
+        ]
+        let sections = LauncherRanking.sections(
+            for: "mail", commands: commands, frecency: [:], now: now
+        )
+        XCTAssertEqual(sections.map(\.title), [CommandSection.applications])
+    }
+
     /// Same shape, same score — so ordering must come from the title, not from
     /// dictionary iteration order.
     func testTiesBreakAlphabeticallyForDeterminism() {

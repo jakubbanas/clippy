@@ -56,6 +56,48 @@ final class FrecencyTests: XCTestCase {
         XCTAssertEqual(Frecency.boost(ten, now: now), Frecency.boost(thousand, now: now))
     }
 
+    // MARK: - topUsed (the empty-query "top apps" list)
+
+    func testTopUsedOrdersByUseCount() {
+        let store = [
+            "a": FrecencyEntry(uses: 2, lastUsed: ago(10)),
+            "b": FrecencyEntry(uses: 9, lastUsed: ago(9_999)),
+            "c": FrecencyEntry(uses: 5, lastUsed: ago(60)),
+        ]
+        XCTAssertEqual(Frecency.topUsed(store, limit: 3), ["b", "c", "a"])
+    }
+
+    /// Deliberately not decayed: these are the apps used most, not last.
+    func testTopUsedIgnoresAgeUnlikeBoost() {
+        let store = [
+            "ancient-favourite": FrecencyEntry(uses: 50, lastUsed: ago(60 * 60 * 24 * 400)),
+            "opened-just-now": FrecencyEntry(uses: 1, lastUsed: ago(5)),
+        ]
+        XCTAssertEqual(Frecency.topUsed(store, limit: 1), ["ancient-favourite"])
+    }
+
+    func testTopUsedBreaksTiesByRecencyThenId() {
+        let store = [
+            "older": FrecencyEntry(uses: 3, lastUsed: ago(500)),
+            "newer": FrecencyEntry(uses: 3, lastUsed: ago(5)),
+        ]
+        XCTAssertEqual(Frecency.topUsed(store, limit: 2), ["newer", "older"])
+
+        let sameTime = [
+            "b": FrecencyEntry(uses: 3, lastUsed: ago(5)),
+            "a": FrecencyEntry(uses: 3, lastUsed: ago(5)),
+        ]
+        XCTAssertEqual(Frecency.topUsed(sameTime, limit: 2), ["a", "b"])
+    }
+
+    func testTopUsedRespectsLimitAndEmptyStore() {
+        let store = (1...10).reduce(into: [String: FrecencyEntry]()) { store, index in
+            store["id\(index)"] = FrecencyEntry(uses: index, lastUsed: ago(Double(index)))
+        }
+        XCTAssertEqual(Frecency.topUsed(store, limit: 3), ["id10", "id9", "id8"])
+        XCTAssertEqual(Frecency.topUsed([:], limit: 5), [])
+    }
+
     func testSaveThenLoadRoundTrips() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString + ".json")

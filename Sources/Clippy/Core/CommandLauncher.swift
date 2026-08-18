@@ -44,14 +44,46 @@ final class CommandLauncher {
         staticCommands = []
     }
 
+    /// How many top apps the empty-query first view shows.
+    private static let topAppCount = 5
+
     private func rank(_ query: String) -> [LauncherSection] {
         let dynamic = features.flatMap { $0.searchItems(query: query) }
+        let topApps = query.isEmpty ? topAppRows() : []
         return LauncherRanking.sections(
             for: query,
-            commands: staticCommands + dynamic,
+            commands: staticCommands + dynamic + topApps,
             frecency: frecency,
             now: Date()
         )
+    }
+
+    /// The most-used apps, for the first view before anything is typed. Ordered
+    /// by use count (not recency — that is what `Frecency.boost` does while
+    /// typing). Only apps appear: no other feature implements `item(withID:)`,
+    /// so remembered ids like "focus:start" resolve to nil and drop out. More
+    /// ids than needed are requested for that reason, then capped.
+    private func topAppRows() -> [Command] {
+        let ids = Frecency.topUsed(frecency, limit: Self.topAppCount * 4)
+        let rows = ids.compactMap { id -> Command? in
+            for feature in features {
+                if let row = feature.item(withID: id) { return row }
+            }
+            return nil
+        }
+        return rows.prefix(Self.topAppCount).map { row in
+            // Re-tagged so these sit in their own section rather than mixing
+            // with typed app results.
+            Command(
+                id: row.id,
+                title: row.title,
+                subtitle: row.subtitle,
+                searchText: row.searchText,
+                icon: row.icon,
+                section: CommandSection.topApps,
+                perform: row.perform
+            )
+        }
     }
 
     private func run(_ command: Command) {

@@ -38,10 +38,31 @@ struct Command {
     }
 }
 
-/// Section names, spelled once. The launcher orders sections by their best
-/// match score, so these are labels only — never a priority order.
+extension Command {
+    /// An SF Symbol sized for a launcher row. Marked as a template so the window
+    /// tints it like secondary text — real app icons are left untinted.
+    static func symbol(_ name: String) -> NSImage? {
+        let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 15, weight: .regular))
+        image?.isTemplate = true
+        return image
+    }
+}
+
+/// Section names, spelled once.
 enum CommandSection {
+    static let topApps = "Top Apps"
     static let commands = "Commands"
     static let applications = "Applications"
     static let clipboard = "Clipboard"
+
+    /// Tie-break order when two sections score the same — which is every
+    /// section on an empty query, since an empty query scores 0 for everything.
+    /// Without this the first view would order sections alphabetically, putting
+    /// Clipboard above Commands and Top Apps last.
+    private static let order = [topApps, commands, applications, clipboard]
+
+    static func priority(of section: String) -> Int {
+        order.firstIndex(of: section) ?? order.count
+    }
 }

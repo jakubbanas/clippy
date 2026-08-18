@@ -52,7 +52,11 @@ final class ClipboardFeature: Feature {
     func commands() -> [Command] {
         guard enabled else { return [] }
         return [
-            Command(id: "clipboard:clear", title: "Clear clipboard history") { [weak self] in
+            Command(
+                id: "clipboard:clear",
+                title: "Clear clipboard history",
+                icon: Command.symbol("trash")
+            ) { [weak self] in
                 self?.clips = []
                 try? FileManager.default.removeItem(at: ClipboardStore.url)
             },

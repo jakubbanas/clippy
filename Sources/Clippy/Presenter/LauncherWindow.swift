@@ -285,6 +285,11 @@ final class LauncherWindow: NSObject, NSTableViewDelegate, NSTableViewDataSource
         icon.image = command.icon
         icon.imageScaling = .scaleProportionallyDown
         icon.setContentHuggingPriority(.required, for: .horizontal)
+        // SF Symbols are templates and get tinted like secondary text; real app
+        // icons are left with their own colours.
+        if command.icon?.isTemplate == true {
+            icon.contentTintColor = .secondaryLabelColor
+        }
 
         let title = NSTextField(labelWithString: command.title)
         title.font = .systemFont(ofSize: 14)

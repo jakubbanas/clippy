@@ -19,11 +19,16 @@ protocol Feature {
     /// An empty query means "the window just opened"; return your few most
     /// useful rows, or none.
     func searchItems(query: String) -> [Command]
+    /// Rebuilds one previously-picked row from its id, so the launcher can turn
+    /// remembered ids (frecency) back into rows without knowing how to construct
+    /// them. nil = not this feature's id, or the target no longer exists.
+    func item(withID id: String) -> Command?
 }
 
 extension Feature {
     func commands() -> [Command] { [] }
     func searchItems(query: String) -> [Command] { [] }
+    func item(withID id: String) -> Command? { nil }
 }
 
 struct FeatureContext {
