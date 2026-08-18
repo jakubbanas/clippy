@@ -120,6 +120,7 @@ final class ClipboardFeature: Feature {
             // Matched against this, displayed as `title`. Capped so a 2000-char
             // clip is not crushed by the skipped-character penalty.
             searchText: String(clip.text.prefix(Self.scoringPrefix)),
+            icon: Command.symbol("doc.on.clipboard"),
             section: CommandSection.clipboard
         ) {
             // Copy only — no synthetic ⌘V, which would need Accessibility.
