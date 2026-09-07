@@ -11,6 +11,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var hideClippyItem: NSMenuItem!
     private var isClippyHidden = false
     private let activityChartView = ActivityStatsView(frame: NSRect(x: 0, y: 0, width: 320, height: 260))
+    private let priorityListView = PriorityListView(frame: NSRect(x: 0, y: 0, width: PriorityListView.width, height: 60))
+    private lazy var priorityInputWindow: PriorityInputWindow = {
+        let window = PriorityInputWindow()
+        window.onAdd = { text in
+            PriorityStore.save(PriorityStore.add(PriorityStore.load(), text: text))
+        }
+        return window
+    }()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -54,6 +62,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         let menu = NSMenu()
         menu.delegate = self
+        wirePriorityList()
+        let priorityItem = NSMenuItem()
+        priorityItem.view = priorityListView
+        menu.addItem(priorityItem)
+        let addPriorityItem = NSMenuItem(title: "Add priority…", action: #selector(addPriority), keyEquivalent: "n")
+        addPriorityItem.target = self
+        menu.addItem(addPriorityItem)
+        menu.addItem(.separator())
         let activityItem = NSMenuItem()
         activityItem.view = activityChartView
         activityItem.isEnabled = false
@@ -81,6 +97,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
     }
 
+    /// Clicking a priority hands its text to the focus feature as the session
+    /// goal, at the configured default length — one click from "this matters"
+    /// to a running block.
+    private func wirePriorityList() {
+        priorityListView.onStart = { [weak self] priority in
+            self?.statusItem.menu?.cancelTracking()
+            let focus = self?.features.compactMap { $0 as? FocusSessionFeature }.first
+            focus?.startSession(goal: priority.text)
+        }
+        priorityListView.onToggle = { [weak self] priority in
+            let priorities = PriorityStore.toggle(PriorityStore.load(), id: priority.id)
+            PriorityStore.save(priorities)
+            // Same row count, so the open menu keeps its size — safe to redraw
+            // in place rather than close.
+            self?.priorityListView.configure(priorities: priorities)
+        }
+        priorityListView.onRemove = { [weak self] priority in
+            PriorityStore.save(PriorityStore.remove(PriorityStore.load(), id: priority.id))
+            // One row shorter: an open menu will not re-lay-out around a
+            // smaller view, so close it and show the new list on next open.
+            self?.statusItem.menu?.cancelTracking()
+        }
+    }
+
+    @objc private func addPriority() {
+        priorityInputWindow.show()
+    }
+
     @objc private func openConfig() {
         _ = ConfigStore.load() // ensures the file exists before opening
         NSWorkspace.shared.open(ConfigStore.url)
@@ -94,6 +138,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// menu (and its embedded chart view) stays alive for the app's whole
     /// run — data would go stale if only computed once at construction.
     func menuWillOpen(_ menu: NSMenu) {
+        priorityListView.configure(priorities: PriorityStore.load())
+
         let calendar = Calendar.current
         let now = Date()
 
