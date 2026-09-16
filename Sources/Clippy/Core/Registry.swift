@@ -8,7 +8,8 @@ enum Registry {
             BreakTrackerFeature(),
             ActivityLogFeature(),
             AppLauncherFeature(),
-            ClipboardFeature()
+            ClipboardFeature(),
+            CalculatorFeature()
         ]
     }
 }

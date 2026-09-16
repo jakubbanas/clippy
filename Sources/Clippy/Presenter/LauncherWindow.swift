@@ -22,6 +22,9 @@ final class LauncherWindow: NSObject, NSTableViewDelegate, NSTableViewDataSource
     private static let rowHeight: CGFloat = 36
     private static let headerHeight: CGFloat = 28
     private static let maxListHeight: CGFloat = 340
+    /// The hairline under the field. Counted in `resize()`, so the view is
+    /// constrained to exactly this — see the comment where it is built.
+    private static let separatorHeight: CGFloat = 1
     /// Breathing room above the first row and below the last. Counted in
     /// `resize()` too, or the last row gets clipped.
     private static let listPadding: CGFloat = 8
@@ -73,6 +76,10 @@ final class LauncherWindow: NSObject, NSTableViewDelegate, NSTableViewDataSource
         field.translatesAutoresizingMaskIntoConstraints = false
 
         table.headerView = nil
+        // .plain, not the default .automatic: that style insets rows by 10pt top
+        // and bottom, so the table's content was 20pt taller than the slot
+        // `resize()` sized for it and the last row scrolled out of sight.
+        table.style = .plain
         table.rowHeight = Self.rowHeight
         // Default is 2pt per row, which `resize()` would not account for — three
         // rows of slack is enough to clip the last one.
@@ -90,8 +97,13 @@ final class LauncherWindow: NSObject, NSTableViewDelegate, NSTableViewDataSource
         scrollView.drawsBackground = false
         scrollView.translatesAutoresizingMaskIntoConstraints = false
 
-        let separator = NSBox()
-        separator.boxType = .separator
+        // A plain 1pt view, not NSBox(boxType: .separator): that one lays out
+        // 5pt tall whatever height it is constrained to, which `resize()`'s
+        // arithmetic did not account for — the list slot came out 4pt short and
+        // the last row was clipped against the bottom edge.
+        let separator = NSView()
+        separator.wantsLayer = true
+        separator.layer?.backgroundColor = NSColor.separatorColor.cgColor
         separator.translatesAutoresizingMaskIntoConstraints = false
 
         content.addSubview(field)
@@ -106,6 +118,7 @@ final class LauncherWindow: NSObject, NSTableViewDelegate, NSTableViewDataSource
             field.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
             field.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),
             separator.topAnchor.constraint(equalTo: content.topAnchor, constant: Self.fieldHeight),
+            separator.heightAnchor.constraint(equalToConstant: Self.separatorHeight),
             separator.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             separator.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             scrollView.topAnchor.constraint(equalTo: separator.bottomAnchor, constant: Self.listPadding),
@@ -228,7 +241,7 @@ final class LauncherWindow: NSObject, NSTableViewDelegate, NSTableViewDataSource
         // The list's own top/bottom insets; without them the last row is clipped.
         if listHeight > 0 { listHeight += Self.listPadding * 2 }
 
-        let height = Self.fieldHeight + 1 + listHeight
+        let height = Self.fieldHeight + Self.separatorHeight + listHeight
         var frame = panel.frame
         frame.origin.y += frame.height - height // grow downward, keep the field put
         frame.size.height = height
