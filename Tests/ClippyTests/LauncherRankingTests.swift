@@ -11,7 +11,6 @@ final class LauncherRankingTests: XCTestCase {
     private var fixture: [Command] {
         [
             command("focus:start", "Start focus", CommandSection.commands),
-            command("clip:1", "the link to slack", CommandSection.clipboard),
             command("app:slack", "Slack", CommandSection.applications),
             command("app:safari", "Safari", CommandSection.applications),
             command("app:mail", "Mail", CommandSection.applications),
@@ -22,17 +21,10 @@ final class LauncherRankingTests: XCTestCase {
         let sections = LauncherRanking.sections(
             for: "sl", commands: fixture, frecency: [:], now: now
         )
-        // "Slack" wins on a whole-query prefix; the clip's late s/l pair scores
-        // far lower. Applications therefore leads outright, not by a tiebreak.
+        // "Slack" wins on a whole-query prefix; "Start focus" only has a late,
+        // scattered s/l. Applications therefore leads outright, not by a tiebreak.
         XCTAssertEqual(sections.first?.title, CommandSection.applications)
         XCTAssertEqual(sections.first?.commands.first?.id, "app:slack")
-    }
-
-    func testQueryMatchingOnlyAClipPutsClipboardFirst() {
-        let sections = LauncherRanking.sections(
-            for: "link", commands: fixture, frecency: [:], now: now
-        )
-        XCTAssertEqual(sections.first?.title, CommandSection.clipboard)
     }
 
     func testNonMatchesAreDropped() {
@@ -86,21 +78,20 @@ final class LauncherRankingTests: XCTestCase {
         XCTAssertFalse(sections.flatMap { $0.commands.map(\.id) }.contains("app:slack"))
     }
 
-    /// A clipboard row shows a 60-character preview but must match on its full
-    /// text. Scoring `title` instead of `searchText` would silently drop this.
+    /// A calculator row shows its result but must match on the typed
+    /// expression. Scoring `title` instead of `searchText` would drop it.
     func testMatchesAgainstSearchTextNotTitle() {
-        let buried = String(repeating: "filler ", count: 25) + "needle"
         let row = Command(
-            id: "clip:1",
-            title: "filler filler filler…",
-            searchText: buried,
-            section: CommandSection.clipboard,
+            id: "calculator:result",
+            title: "2",
+            searchText: "1+1",
+            section: CommandSection.commands,
             perform: {}
         )
         let sections = LauncherRanking.sections(
-            for: "needle", commands: [row], frecency: [:], now: now
+            for: "1+1", commands: [row], frecency: [:], now: now
         )
-        XCTAssertEqual(sections.first?.commands.first?.id, "clip:1")
+        XCTAssertEqual(sections.first?.commands.first?.id, "calculator:result")
     }
 
     func testEmptyQueryKeepsEveryCommandGroupedBySection() {
@@ -108,13 +99,13 @@ final class LauncherRankingTests: XCTestCase {
             for: "", commands: fixture, frecency: [:], now: now
         )
         XCTAssertEqual(Set(sections.map(\.title)), [
-            CommandSection.commands, CommandSection.applications, CommandSection.clipboard,
+            CommandSection.commands, CommandSection.applications,
         ])
     }
 
     /// Every row scores 0 on an empty query, so section order comes entirely
     /// from the declared priority — not from the titles, which would put
-    /// Clipboard above Commands and Top Apps last.
+    /// Applications above Commands and Top Apps last.
     func testEmptyQueryOrdersSectionsByPriorityNotAlphabetically() {
         let commands = fixture + [command("app:top", "Slack", CommandSection.topApps)]
         let sections = LauncherRanking.sections(
@@ -124,7 +115,6 @@ final class LauncherRankingTests: XCTestCase {
             CommandSection.topApps,
             CommandSection.commands,
             CommandSection.applications,
-            CommandSection.clipboard,
         ])
     }
 

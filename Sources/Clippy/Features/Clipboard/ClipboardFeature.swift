@@ -11,16 +11,14 @@ final class ClipboardFeature: Feature {
 
     private static let pollSeconds: UInt64 = 1
     private static let maxBytes = 100_000
-    private static let emptyQueryRows = 3
-    /// How much of a clip `LauncherRanking` gets to match against, via the row's
-    /// `searchText`: a 2000-character clip would otherwise be crushed by the
-    /// skipped-character penalty, and the row only shows the first line anyway.
-    private static let scoringPrefix = 200
 
     private var task: Task<Void, Never>?
     private var clips: [Clip] = []
     private var maxItems = 500
     private var enabled = false
+    /// Built on first use, not in `start` — the window is AppKit-heavy and most
+    /// sessions never open it.
+    private var historyWindow: ClipboardHistoryWindow?
 
     func start(context: FeatureContext) {
         guard task == nil else { return }
@@ -45,6 +43,7 @@ final class ClipboardFeature: Feature {
     func stop() {
         task?.cancel()
         task = nil
+        historyWindow?.close()
         clips = []
         enabled = false
     }
@@ -53,23 +52,13 @@ final class ClipboardFeature: Feature {
         guard enabled else { return [] }
         return [
             Command(
-                id: "clipboard:clear",
-                title: "Clear clipboard history",
-                icon: Command.symbol("trash")
+                id: "clipboard:history",
+                title: "Clipboard History",
+                icon: Command.symbol("clipboard")
             ) { [weak self] in
-                self?.clips = []
-                try? FileManager.default.removeItem(at: ClipboardStore.url)
+                self?.openHistory()
             },
         ]
-    }
-
-    func searchItems(query: String) -> [Command] {
-        guard enabled else { return [] }
-        // No scoring or sorting here — every row is scored exactly once, in
-        // LauncherRanking, against the `searchText` set by `row(for:)`. Doing it
-        // twice is how a clip gets filtered in by one window and out by another.
-        let matches = query.isEmpty ? Array(clips.prefix(Self.emptyQueryRows)) : clips
-        return matches.map(row(for:))
     }
 
     // MARK: - Pure helpers
@@ -95,6 +84,25 @@ final class ClipboardFeature: Feature {
 
     // MARK: - Private
 
+    /// Built on first open rather than in `start` — the window is AppKit-heavy
+    /// and most sessions never open it.
+    private func openHistory() {
+        if historyWindow == nil {
+            let window = ClipboardHistoryWindow()
+            window.onLoad = { [weak self] in self?.clips ?? [] }
+            window.onPick = { clip in
+                // Copy only — no synthetic ⌘V, which would need Accessibility.
+                // The window restores the previous app so the user's own ⌘V
+                // lands there.
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(clip.text, forType: .string)
+            }
+            window.onDelete = { [weak self] clip in self?.delete(clip) }
+            historyWindow = window
+        }
+        historyWindow?.show()
+    }
+
     private func capture() {
         let pasteboard = NSPasteboard.general
         guard let text = pasteboard.string(forType: .string) else { return }
@@ -110,27 +118,14 @@ final class ClipboardFeature: Feature {
         ClipboardStore.save(clips, to: ClipboardStore.url)
     }
 
-    private func row(for clip: Clip) -> Command {
-        let age = Self.relativeAge(from: clip.copiedAt, now: Date())
-        let subtitle = [clip.app, age].compactMap { $0 }.joined(separator: " · ")
-        return Command(
-            id: "clip:\(clip.copiedAt)",
-            title: Self.rowTitle(for: clip.text),
-            subtitle: subtitle,
-            // Matched against this, displayed as `title`. Capped so a 2000-char
-            // clip is not crushed by the skipped-character penalty.
-            searchText: String(clip.text.prefix(Self.scoringPrefix)),
-            icon: Command.symbol("doc.on.clipboard"),
-            section: CommandSection.clipboard
-        ) {
-            // Copy only — no synthetic ⌘V, which would need Accessibility.
-            // LauncherWindow restores the previous app so the user's ⌘V lands there.
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(clip.text, forType: .string)
-        }
+    /// `copiedAt` is the clip's identity: `record` keeps one entry per distinct
+    /// text, and every capture stamps a fresh timestamp.
+    private func delete(_ clip: Clip) {
+        clips.removeAll { $0.copiedAt == clip.copiedAt }
+        ClipboardStore.save(clips, to: ClipboardStore.url)
     }
 
-    private static func relativeAge(from timestamp: Double, now: Date) -> String {
+    static func relativeAge(from timestamp: Double, now: Date) -> String {
         let seconds = Int(now.timeIntervalSince1970 - timestamp)
         switch seconds {
         case ..<60: return "just now"

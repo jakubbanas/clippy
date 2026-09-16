@@ -87,13 +87,8 @@ final class CommandLauncher {
     }
 
     private func run(_ command: Command) {
-        // Clips are skipped: their ids are timestamps that never recur, so an
-        // entry could never be hit twice — it would only grow the file forever.
-        // Clips are already recency-ordered by the feature.
-        if command.section != CommandSection.clipboard {
-            frecency = Frecency.record(frecency, id: command.id, now: Date())
-            Frecency.save(frecency, to: Frecency.url)
-        }
+        frecency = Frecency.record(frecency, id: command.id, now: Date())
+        Frecency.save(frecency, to: Frecency.url)
         command.perform()
     }
 }

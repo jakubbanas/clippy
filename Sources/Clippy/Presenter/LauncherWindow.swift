@@ -64,7 +64,7 @@ final class LauncherWindow: NSObject, NSTableViewDelegate, NSTableViewDataSource
         content.layer?.masksToBounds = true
         panel.contentView = content
 
-        field.placeholderString = "Search apps, commands, clipboard…"
+        field.placeholderString = "Search apps and commands…"
         field.font = .systemFont(ofSize: 20)
         field.isBordered = false
         field.drawsBackground = false

@@ -1,18 +1,18 @@
 import AppKit
 
-/// A user-triggerable row in the command launcher. Apps, clipboard clips, and
-/// feature actions are all this one type, so the launcher window knows nothing
-/// about where a row came from.
+/// A user-triggerable row in the command launcher. Apps and feature actions are
+/// both this one type, so the launcher window knows nothing about where a row
+/// came from.
 struct Command {
     /// Stable across launches — this is the frecency key. Apps use their bundle
-    /// path, feature commands use "<featureID>:<slug>", clips use "clip:<copiedAt>".
+    /// path, feature commands use "<featureID>:<slug>".
     let id: String
     let title: String
-    /// Dimmed trailing text: an app's path, a clip's source app and age.
+    /// Dimmed trailing text: an app's path.
     let subtitle: String?
     /// What the fuzzy matcher scores against, when that differs from what is
-    /// shown. A clipboard row's `title` is a 60-character preview, so matching
-    /// on it would drop any clip whose match sits further in. nil = use `title`.
+    /// shown. A calculator row's `title` is the result, so matching on it would
+    /// score "2" against the typed "1+1" and drop the row. nil = use `title`.
     let searchText: String?
     let icon: NSImage?
     /// Which group this row is listed under. See `CommandSection`.
@@ -54,13 +54,13 @@ enum CommandSection {
     static let topApps = "Top Apps"
     static let commands = "Commands"
     static let applications = "Applications"
-    static let clipboard = "Clipboard"
+    static let calculator = "Calculator"
 
     /// Tie-break order when two sections score the same — which is every
     /// section on an empty query, since an empty query scores 0 for everything.
     /// Without this the first view would order sections alphabetically, putting
-    /// Clipboard above Commands and Top Apps last.
-    private static let order = [topApps, commands, applications, clipboard]
+    /// Applications above Commands and Top Apps last.
+    private static let order = [topApps, commands, applications]
 
     static func priority(of section: String) -> Int {
         order.firstIndex(of: section) ?? order.count

@@ -15,9 +15,8 @@ struct LauncherSection: Equatable {
 /// Turns a query plus a flat command list into ordered, capped sections.
 /// Pure — the window calls this on every keystroke and renders the result.
 ///
-/// Scores are compared only *within* a section, because an 8-character app name
-/// and a 2000-character clipboard clip do not share a scale. Section order is
-/// dynamic (best member first), so the thing you actually typed stays on top.
+/// Scores are compared only *within* a section. Section order is dynamic (best
+/// member first), so the thing you actually typed stays on top.
 enum LauncherRanking {
     static func sections(
         for query: String,
@@ -28,9 +27,8 @@ enum LauncherRanking {
     ) -> [LauncherSection] {
         var scored: [String: [(command: Command, score: Int)]] = [:]
         for command in commands {
-            // searchText, not title: a clipboard row's title is a 60-character
-            // preview, and scoring that would drop any clip whose match sits
-            // further in.
+            // searchText, not title: a calculator row's title is the result, and
+            // scoring that against the typed expression would drop it.
             guard let base = FuzzyMatch.score(query, in: command.searchText ?? command.title)
             else { continue }
             let score = base + Frecency.boost(frecency[command.id], now: now)
