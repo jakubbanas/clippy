@@ -6,8 +6,11 @@ and prints a fixed block for the agent to interpret. All arithmetic lives
 here so the report is deterministic.
 
 Usage: report.py [YYYY-MM | current]   (default: previous complete month)
+       report.py --weekly              (all months, ISO weeks, workdays only)
+       report.py --json                (same aggregates, for the visualisation)
 """
 import csv
+import json
 import datetime
 import glob
 import os
@@ -52,21 +55,174 @@ def load(month):
         ], path
 
 
+def load_all():
+    rows = []
+    for p in sorted(glob.glob(os.path.join(DATA_DIR, "activity-*.csv"))):
+        with open(p) as fh:
+            rows += [
+                (r["date"], int(r["hour"]), float(r["active_seconds"]),
+                 float(r["observed_seconds"]), r["had_meeting"] == "true")
+                for r in csv.DictReader(fh)
+            ]
+    if not rows:
+        sys.exit("No data in %s." % DATA_DIR)
+    return rows
+
+
 def pct(active, observed):
     return 100 * active / observed if observed else 0.0
 
 
+def totals_by_day(rows):
+    day_total = defaultdict(lambda: [0.0, 0.0, 0])   # date -> [active, observed, meeting_hours]
+    for d, h, a, o, m in rows:
+        day_total[d][0] += a
+        day_total[d][1] += o
+        day_total[d][2] += 1 if m else 0
+    return day_total
+
+
+def weekly():
+    """Per-ISO-week means across every logged month. Same >=1h workday filter
+    as the monthly per-day means, so off days can't drag a week down."""
+    day_total = totals_by_day(load_all())
+    workdays = sorted(d for d, v in day_total.items() if v[1] >= WORKDAY_MIN_OBSERVED)
+    if not workdays:
+        sys.exit("No workdays (>=1h observed). Machine was off or logging was disabled.")
+
+    wk = defaultdict(lambda: [0.0, 0.0, 0, 0])   # (iso_year, iso_week) -> [active, observed, n, mtg_h]
+    for d in workdays:
+        y, w, _ = datetime.date.fromisoformat(d).isocalendar()
+        wk[(y, w)][0] += day_total[d][0]
+        wk[(y, w)][1] += day_total[d][1]
+        wk[(y, w)][2] += 1
+        wk[(y, w)][3] += day_total[d][2]
+
+    current = datetime.date.today().isocalendar()[:2]
+    print("=" * 62)
+    print("WEEKLY ACTIVITY  (workdays only, >=1h observed)")
+    print("=" * 62)
+    print("span          %s .. %s   %d workdays in %d weeks"
+          % (workdays[0], workdays[-1], len(workdays), len(wk)))
+    print("\nwk_start      n  obs_h/day  act_h/day  act%  mtg_h  note")
+    for key in sorted(wk):
+        a, o, n, m = wk[key]
+        monday = datetime.date.fromisocalendar(key[0], key[1], 1)
+        if tuple(key) == current:
+            note = "PARTIAL week in progress"
+        elif n <= 2:
+            note = "low n - coverage gap, not output"
+        else:
+            note = ""
+        print("%s  %2d  %9.1f  %9.2f  %4.0f%%  %5d  %s"
+              % (monday.isoformat(), n, o / 3600 / n, a / 3600 / n, pct(a, o), m, note))
+    comparable = [(k, v) for k, v in sorted(wk.items()) if v[2] >= 4 and tuple(k) != current]
+    print("\nweeks with >=4 workdays and complete: %d" % len(comparable))
+    print("=" * 62)
+
+
+def dump_json():
+    """Same aggregates as the printed report, as JSON for the visualisation.
+    Every figure here is computed by this script - the chart never does arithmetic."""
+    rows = load_all()
+    day_total = totals_by_day(rows)
+    workdays = sorted(d for d, v in day_total.items() if v[1] >= WORKDAY_MIN_OBSERVED)
+    if not workdays:
+        sys.exit("No workdays (>=1h observed). Machine was off or logging was disabled.")
+    work = set(workdays)
+    current = datetime.date.today().isocalendar()[:2]
+
+    wk = defaultdict(lambda: [0.0, 0.0, 0, 0])
+    for d in workdays:
+        y, w, _ = datetime.date.fromisoformat(d).isocalendar()
+        k = (y, w)
+        wk[k][0] += day_total[d][0]
+        wk[k][1] += day_total[d][1]
+        wk[k][2] += 1
+        wk[k][3] += day_total[d][2]
+    weeks = []
+    for k in sorted(wk):
+        a, o, n, m = wk[k]
+        weeks.append({
+            "start": datetime.date.fromisocalendar(k[0], k[1], 1).isoformat(),
+            "n": n, "act_pct": round(pct(a, o), 1),
+            "act_h_day": round(a / 3600 / n, 2), "obs_h_day": round(o / 3600 / n, 2),
+            "mtg_h": m, "partial": tuple(k) == current, "comparable": n >= 4 and tuple(k) != current,
+        })
+
+    hourly = defaultdict(lambda: [0.0, 0.0])
+    for d, h, a, o, m in rows:
+        hourly[h][0] += a
+        hourly[h][1] += o
+    hours = [{"hour": h, "obs_h": round(hourly[h][1] / 3600, 2),
+              "act_pct": round(pct(*hourly[h]), 1)} for h in sorted(hourly)]
+
+    wd = defaultdict(lambda: [0.0, 0.0, 0])
+    for d in workdays:
+        k = datetime.date.fromisoformat(d).weekday()
+        wd[k][0] += day_total[d][0]
+        wd[k][1] += day_total[d][1]
+        wd[k][2] += 1
+    names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    weekdays = [{"day": names[k], "n": wd[k][2], "act_pct": round(pct(wd[k][0], wd[k][1]), 1),
+                 "act_h_day": round(wd[k][0] / 3600 / wd[k][2], 2)} for k in sorted(wd)]
+
+    grid = defaultdict(dict)
+    for d, h, a, o, m in rows:
+        if d in work and o >= SUBSTANTIVE_HOUR:
+            grid[d][h] = round(pct(a, o), 1)
+
+    days = [{"date": d, "dow": datetime.date.fromisoformat(d).strftime("%a"),
+             "obs_h": round(day_total[d][1] / 3600, 2), "act_h": round(day_total[d][0] / 3600, 2),
+             "act_pct": round(pct(day_total[d][0], day_total[d][1]), 1),
+             "mtg_h": day_total[d][2],
+             "hours": {str(h): v for h, v in sorted(grid[d].items())}} for d in workdays]
+
+    possible = len(WINDOW) * 3600 * len(workdays)
+    by_day = defaultdict(dict)
+    for d, h, a, o, m in rows:
+        by_day[d][h] = (a, o, m)
+    obs = sum(by_day[d].get(h, (0, 0, False))[1] for d in workdays for h in WINDOW)
+    act = sum(by_day[d].get(h, (0, 0, False))[0] for d in workdays for h in WINDOW)
+
+    total_active = sum(r[2] for r in rows)
+    total_observed = sum(r[3] for r in rows)
+    json.dump({
+        "generated": datetime.date.today().isoformat(),
+        "span": [workdays[0], workdays[-1]],
+        "workdays": len(workdays),
+        "observed_h": round(total_observed / 3600, 1),
+        "active_h": round(total_active / 3600, 1),
+        "act_pct": round(pct(total_active, total_observed), 1),
+        "act_h_day": round(sum(day_total[d][0] for d in workdays) / 3600 / len(workdays), 2),
+        "act_h_day_median": round(st.median(day_total[d][0] / 3600 for d in workdays), 2),
+        "idle_threshold_s": 30,
+        "window": [WINDOW[0], WINDOW[-1] + 1],
+        "coverage": {"possible_h": round(possible / 3600, 1), "observed_h": round(obs / 3600, 1),
+                     "active_h": round(act / 3600, 1),
+                     "observed_pct": round(100 * obs / possible, 1),
+                     "unobserved_h": round((possible - obs) / 3600, 1),
+                     "unobserved_pct": round(100 * (possible - obs) / possible, 1)},
+        "weeks": weeks, "hours": hours, "weekdays": weekdays, "days": days,
+    }, sys.stdout, indent=1)
+    print()
+
+
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--weekly":
+        weekly()
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "--json":
+        dump_json()
+        return
+
     month = target_month(sys.argv[1] if len(sys.argv) > 1 else None)
     rows, path = load(month)
 
     by_day = defaultdict(dict)                       # date -> hour -> (active, observed, meeting)
-    day_total = defaultdict(lambda: [0.0, 0.0, 0])   # date -> [active, observed, meeting_hours]
+    day_total = totals_by_day(rows)
     for d, h, a, o, m in rows:
         by_day[d][h] = (a, o, m)
-        day_total[d][0] += a
-        day_total[d][1] += o
-        day_total[d][2] += 1 if m else 0
 
     workdays = sorted(d for d, v in day_total.items() if v[1] >= WORKDAY_MIN_OBSERVED)
     if not workdays:
