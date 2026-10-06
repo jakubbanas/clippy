@@ -269,4 +269,36 @@ final class ActivityLogTests: XCTestCase {
         XCTAssertNil(day[3].activePercent, "zero observed seconds must not divide-by-zero into 0%")
         XCTAssertEqual(day[3].hadMeeting, true, "hadMeeting still passes through even with no observed time")
     }
+
+    /// Weighted by observed time: a short fully-active day must not count as
+    /// much as a long idle one (averaging the daily %s here would give 0.5).
+    func testWeekPercentWeightsByObservedSeconds() {
+        let calendar = pacificCalendar()
+        // Wednesday 2026-08-05; week is Mon 2026-08-03 ... Sun 2026-08-09.
+        let reference = calendar.date(from: DateComponents(year: 2026, month: 8, day: 5, hour: 12))!
+        let rows: [ActivityLogKey: ActivityLogRow] = [
+            ActivityLogKey(date: "2026-08-03", hour: 9): ActivityLogRow(activeSeconds: 3600, observedSeconds: 3600, hadMeeting: false),
+            ActivityLogKey(date: "2026-08-04", hour: 9): ActivityLogRow(activeSeconds: 0, observedSeconds: 10800, hadMeeting: false),
+        ]
+
+        XCTAssertEqual(ActivityLog.weekPercent(from: rows, for: reference, calendar: calendar), 0.25)
+    }
+
+    func testWeekPercentIgnoresRowsOutsideTheWeek() {
+        let calendar = pacificCalendar()
+        let reference = calendar.date(from: DateComponents(year: 2026, month: 8, day: 5, hour: 12))!
+        let rows: [ActivityLogKey: ActivityLogRow] = [
+            ActivityLogKey(date: "2026-08-05", hour: 9): ActivityLogRow(activeSeconds: 1800, observedSeconds: 3600, hadMeeting: false),
+            ActivityLogKey(date: "2026-08-10", hour: 9): ActivityLogRow(activeSeconds: 3600, observedSeconds: 3600, hadMeeting: false),
+        ]
+
+        XCTAssertEqual(ActivityLog.weekPercent(from: rows, for: reference, calendar: calendar), 0.5)
+    }
+
+    func testWeekPercentNilWhenNoObservedTime() {
+        let calendar = pacificCalendar()
+        let reference = calendar.date(from: DateComponents(year: 2026, month: 8, day: 5, hour: 12))!
+
+        XCTAssertNil(ActivityLog.weekPercent(from: [:], for: reference, calendar: calendar))
+    }
 }

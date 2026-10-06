@@ -44,7 +44,7 @@ A feature (see `Features/Calendar/CalendarFeature.swift` for the only current ex
 2. Read whatever config it needs from `context.config` (add a field to `AppConfig` in `Config.swift` if needed).
 3. Push `Announcement`s through `context.announcer.announce(...)` whenever it decides Clippy should appear — the feature owns all "when" and "why" logic; the presenter owns all "how".
 
-`AppDelegate.swift` wires this together: builds the `Presenter`, builds the `Announcer` closure that forwards to it, calls `Registry.builtInFeatures()`, and calls `start(context:)` on each. The tray's "Reload Config" menu item calls `stop()` on every feature then re-runs `start(context:)` with freshly-loaded config — this is how config changes take effect without relaunching the app.
+`AppDelegate.swift` wires this together: builds the `Presenter`, builds the `Announcer` closure that forwards to it, calls `Registry.builtInFeatures()`, and calls `start(context:)` on each. The popover's "Reload Config" control calls `stop()` on every feature then re-runs `start(context:)` with freshly-loaded config — this is how config changes take effect without relaunching the app.
 
 ### Calendar feature internals
 
@@ -59,4 +59,4 @@ A feature (see `Features/Calendar/CalendarFeature.swift` for the only current ex
 
 ### App shell
 
-`main.swift` sets `NSApplication.shared.setActivationPolicy(.accessory)` so the app has no Dock icon (also backed by `LSUIElement` in `Support/Info.plist`). `AppDelegate.swift` owns the status-bar item and its menu (Test Clippy, Open/Reload Config, Start at Login via `SMAppService`, Quit). `Config.swift` loads/saves `~/Library/Application Support/com.jbanas.clippy/config.json`, writing sensible defaults on first run if the file is missing or partially specified (each `Codable` type has a custom `init(from:)` that fills in defaults per-key rather than failing the whole decode).
+`main.swift` sets `NSApplication.shared.setActivationPolicy(.accessory)` so the app has no Dock icon (also backed by `LSUIElement` in `Support/Info.plist`). `AppDelegate.swift` owns the status-bar item, which toggles a dark SwiftUI `NSPopover` (`Popover/PopoverView.swift`, state in `Popover/PopoverModel.swift`): Activity and Controls tabs (Test Clippy, Hide Clippy, Start at Login via `SMAppService`, Reload Config) plus Settings (opens config.json) and Quit. `Config.swift` loads/saves `~/Library/Application Support/com.jbanas.clippy/config.json`, writing sensible defaults on first run if the file is missing or partially specified (each `Codable` type has a custom `init(from:)` that fills in defaults per-key rather than failing the whole decode).

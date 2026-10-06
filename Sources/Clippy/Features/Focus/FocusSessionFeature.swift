@@ -56,14 +56,6 @@ final class FocusSessionFeature: Feature {
         ]
     }
 
-    /// Starts a session without the panel, for callers that already know the
-    /// goal — the priorities list in the status menu. Main thread only, like
-    /// every other entry point here. No-op while the feature is disabled, since
-    /// `beginSession` needs an announcer.
-    func startSession(goal: String, minutes: Double? = nil) {
-        beginSession(goal: goal, minutes: minutes ?? defaultMinutes)
-    }
-
     private func showStartPanel() {
         if startWindow == nil {
             let window = FocusStartWindow(defaultMinutes: defaultMinutes)

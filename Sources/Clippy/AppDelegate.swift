@@ -1,24 +1,15 @@
 import AppKit
 import ServiceManagement
+import SwiftUI
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private var presenter: Presenter!
     private var announcer: Announcer!
     private var features: [Feature] = []
     private let launcher = CommandLauncher()
-    private var loginItem: NSMenuItem!
-    private var hideClippyItem: NSMenuItem!
-    private var isClippyHidden = false
-    private let activityChartView = ActivityStatsView(frame: NSRect(x: 0, y: 0, width: 320, height: 260))
-    private let priorityListView = PriorityListView(frame: NSRect(x: 0, y: 0, width: PriorityListView.width, height: 60))
-    private lazy var priorityInputWindow: PriorityInputWindow = {
-        let window = PriorityInputWindow()
-        window.onAdd = { text in
-            PriorityStore.save(PriorityStore.add(PriorityStore.load(), text: text))
-        }
-        return window
-    }()
+    private let popover = NSPopover()
+    private let model = PopoverModel()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -59,127 +50,76 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func setUpStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem.button?.title = "📎"
+        statusItem.button?.target = self
+        statusItem.button?.action = #selector(togglePopover)
 
-        let menu = NSMenu()
-        menu.delegate = self
-        wirePriorityList()
-        let priorityItem = NSMenuItem()
-        priorityItem.view = priorityListView
-        menu.addItem(priorityItem)
-        let addPriorityItem = NSMenuItem(title: "Add priority…", action: #selector(addPriority), keyEquivalent: "n")
-        addPriorityItem.target = self
-        menu.addItem(addPriorityItem)
-        menu.addItem(.separator())
-        let activityItem = NSMenuItem()
-        activityItem.view = activityChartView
-        activityItem.isEnabled = false
-        menu.addItem(activityItem)
-        menu.addItem(.separator())
-        let testItem = NSMenuItem(title: "Test Clippy", action: #selector(testClippy), keyEquivalent: "t")
-        testItem.target = self
-        menu.addItem(testItem)
-        menu.addItem(.separator())
-        let configItem = NSMenuItem(title: "Open Config", action: #selector(openConfig), keyEquivalent: "")
-        configItem.target = self
-        menu.addItem(configItem)
-        let reloadItem = NSMenuItem(title: "Reload Config", action: #selector(reloadConfig), keyEquivalent: "")
-        reloadItem.target = self
-        menu.addItem(reloadItem)
-        hideClippyItem = NSMenuItem(title: "Hide Clippy", action: #selector(toggleClippyVisibility), keyEquivalent: "")
-        hideClippyItem.target = self
-        menu.addItem(hideClippyItem)
-        loginItem = NSMenuItem(title: "Start at Login", action: #selector(toggleLoginItem), keyEquivalent: "")
-        loginItem.target = self
-        loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
-        menu.addItem(loginItem)
-        menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit Clippy", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-        statusItem.menu = menu
+        wireModel()
+        let host = NSHostingController(rootView: PopoverView(model: model))
+        // Without this the popover keeps its first size when the tab changes.
+        host.sizingOptions = .preferredContentSize
+        popover.contentViewController = host
+        popover.behavior = .transient
+        popover.appearance = NSAppearance(named: .darkAqua)
     }
 
-    /// Clicking a priority hands its text to the focus feature as the session
-    /// goal, at the configured default length — one click from "this matters"
-    /// to a running block.
-    private func wirePriorityList() {
-        priorityListView.onStart = { [weak self] priority in
-            self?.statusItem.menu?.cancelTracking()
-            let focus = self?.features.compactMap { $0 as? FocusSessionFeature }.first
-            focus?.startSession(goal: priority.text)
+    private func wireModel() {
+        model.onTestClippy = { [weak self] in
+            self?.popover.performClose(nil)
+            self?.testClippy()
         }
-        priorityListView.onToggle = { [weak self] priority in
-            let priorities = PriorityStore.toggle(PriorityStore.load(), id: priority.id)
-            PriorityStore.save(priorities)
-            // Same row count, so the open menu keeps its size — safe to redraw
-            // in place rather than close.
-            self?.priorityListView.configure(priorities: priorities)
+        model.onSetClippyHidden = { [weak self] hidden in
+            self?.presenter.setVisible(!hidden)
         }
-        priorityListView.onRemove = { [weak self] priority in
-            PriorityStore.save(PriorityStore.remove(PriorityStore.load(), id: priority.id))
-            // One row shorter: an open menu will not re-lay-out around a
-            // smaller view, so close it and show the new list on next open.
-            self?.statusItem.menu?.cancelTracking()
+        model.onSetStartsAtLogin = { enabled in
+            Self.setStartsAtLogin(enabled)
+        }
+        model.onReloadConfig = { [weak self] in
+            self?.reloadFeatures()
+        }
+        model.onOpenSettings = { [weak self] in
+            self?.popover.performClose(nil)
+            self?.openConfig()
+        }
+        model.onQuit = {
+            NSApp.terminate(nil)
         }
     }
 
-    @objc private func addPriority() {
-        priorityInputWindow.show()
+    @objc private func togglePopover() {
+        guard let button = statusItem.button else { return }
+        if popover.isShown {
+            popover.performClose(nil)
+            return
+        }
+        model.refresh()
+        // An accessory app is never active on its own; without this the
+        // transient popover does not close on click-outside reliably.
+        NSApp.activate()
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
     }
 
-    @objc private func openConfig() {
+    private func openConfig() {
         _ = ConfigStore.load() // ensures the file exists before opening
         NSWorkspace.shared.open(ConfigStore.url)
     }
 
-    @objc private func reloadConfig() {
-        reloadFeatures()
-    }
-
-    /// Recomputes the activity charts right before the menu opens, since the
-    /// menu (and its embedded chart view) stays alive for the app's whole
-    /// run — data would go stale if only computed once at construction.
-    func menuWillOpen(_ menu: NSMenu) {
-        priorityListView.configure(priorities: PriorityStore.load())
-
-        let calendar = Calendar.current
-        let now = Date()
-
-        let dayRows = ActivityLog.load(from: ActivityLog.url(for: now, calendar: calendar))
-        let day = ActivityLog.dayStats(from: dayRows, for: now, calendar: calendar)
-
-        let weekInterval = calendar.dateInterval(of: .weekOfYear, for: now) ?? DateInterval(start: now, duration: 0)
-        let weekEnd = calendar.date(byAdding: .second, value: -1, to: weekInterval.end) ?? weekInterval.start
-        let startURL = ActivityLog.url(for: weekInterval.start, calendar: calendar)
-        let endURL = ActivityLog.url(for: weekEnd, calendar: calendar)
-        var weekRows = ActivityLog.load(from: startURL)
-        if endURL != startURL {
-            weekRows.merge(ActivityLog.load(from: endURL)) { _, new in new }
-        }
-        let week = ActivityLog.weekStats(from: weekRows, for: now, calendar: calendar)
-
-        activityChartView.configure(week: week, day: day)
-    }
-
-    @objc private func toggleClippyVisibility() {
-        isClippyHidden.toggle()
-        presenter.setVisible(!isClippyHidden)
-        hideClippyItem.title = isClippyHidden ? "Show Clippy" : "Hide Clippy"
-    }
-
-    @objc private func toggleLoginItem() {
+    /// Returns the state actually in effect afterwards, so a failed
+    /// (un)registration shows the real state in the toggle.
+    private static func setStartsAtLogin(_ enabled: Bool) -> Bool {
         let service = SMAppService.mainApp
         do {
-            if service.status == .enabled {
-                try service.unregister()
-            } else {
+            if enabled {
                 try service.register()
+            } else {
+                try service.unregister()
             }
         } catch {
             NSLog("Login item toggle failed: \(error)")
         }
-        loginItem.state = service.status == .enabled ? .on : .off
+        return service.status == .enabled
     }
 
-    @objc private func testClippy() {
+    private func testClippy() {
         announcer.announce(Announcement(
             id: "test:\(Date().timeIntervalSince1970)",
             featureID: "test",

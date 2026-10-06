@@ -145,20 +145,52 @@ extension ActivityLog {
         for date: Date,
         calendar: Calendar = .current
     ) -> [DayStat] {
-        guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: date) else { return [] }
-        let weekStart = calendar.startOfDay(for: weekInterval.start)
-        return (0..<7).compactMap { offset -> DayStat? in
-            guard let day = calendar.date(byAdding: .day, value: offset, to: weekStart) else { return nil }
-            let dayString = dateString(for: day, calendar: calendar)
-            var active = 0.0
-            var observed = 0.0
-            for hour in 0..<24 {
-                guard let row = rows[ActivityLogKey(date: dayString, hour: hour)] else { continue }
-                active += row.activeSeconds
-                observed += row.observedSeconds
-            }
+        return weekDays(for: date, calendar: calendar).map { day in
+            let (active, observed) = totals(from: rows, on: day, calendar: calendar)
             return DayStat(date: day, activePercent: observed > 0 ? active / observed : nil)
         }
+    }
+
+    /// The whole week's active share, weighted by observed time — not the
+    /// mean of the seven daily percentages, which would let a short day
+    /// count as much as a long one. Nil if the week has no observed time.
+    static func weekPercent(
+        from rows: [ActivityLogKey: ActivityLogRow],
+        for date: Date,
+        calendar: Calendar = .current
+    ) -> Double? {
+        var active = 0.0
+        var observed = 0.0
+        for day in weekDays(for: date, calendar: calendar) {
+            let dayTotals = totals(from: rows, on: day, calendar: calendar)
+            active += dayTotals.active
+            observed += dayTotals.observed
+        }
+        return observed > 0 ? active / observed : nil
+    }
+
+    /// Start of each of the 7 days in the week containing `date`.
+    private static func weekDays(for date: Date, calendar: Calendar) -> [Date] {
+        guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: date) else { return [] }
+        let weekStart = calendar.startOfDay(for: weekInterval.start)
+        return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: weekStart) }
+    }
+
+    /// Active and observed seconds summed across `day`'s hourly rows.
+    private static func totals(
+        from rows: [ActivityLogKey: ActivityLogRow],
+        on day: Date,
+        calendar: Calendar
+    ) -> (active: Double, observed: Double) {
+        let dayString = dateString(for: day, calendar: calendar)
+        var active = 0.0
+        var observed = 0.0
+        for hour in 0..<24 {
+            guard let row = rows[ActivityLogKey(date: dayString, hour: hour)] else { continue }
+            active += row.activeSeconds
+            observed += row.observedSeconds
+        }
+        return (active, observed)
     }
 
     /// 24 entries, hour 0..23, for the local calendar day containing `date`.
