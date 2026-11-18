@@ -25,6 +25,13 @@ final class EventKitClient {
         }
     }
 
+    /// Unique, sorted event-calendar titles for the Settings window. Empty
+    /// without full access — this never prompts.
+    func calendarTitles() -> [String] {
+        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { return [] }
+        return Array(Set(store.calendars(for: .event).map(\.title))).sorted()
+    }
+
     /// Events in [from, to), optionally limited to calendars by title.
     func events(from: Date, to: Date, calendarTitles: [String]? = nil) -> [EventInfo] {
         var calendars = store.calendars(for: .event)

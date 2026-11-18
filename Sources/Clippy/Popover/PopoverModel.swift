@@ -25,7 +25,6 @@ final class PopoverModel {
     @ObservationIgnored var onSetClippyHidden: (Bool) -> Void = { _ in }
     /// Applies the change and returns the state actually in effect afterwards.
     @ObservationIgnored var onSetStartsAtLogin: (Bool) -> Bool = { $0 }
-    @ObservationIgnored var onReloadConfig: () -> Void = {}
     @ObservationIgnored var onOpenSettings: () -> Void = {}
     @ObservationIgnored var onQuit: () -> Void = {}
 

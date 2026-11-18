@@ -8,6 +8,35 @@ final class ConfigTests: XCTestCase {
         return try decoder.decode(AppConfig.self, from: Data(json.utf8))
     }
 
+    func testConfigEquality() {
+        XCTAssertEqual(AppConfig(), AppConfig())
+        var changed = AppConfig()
+        changed.clipboard.maxItems = 42
+        XCTAssertNotEqual(changed, AppConfig())
+    }
+
+    func testSaveThenLoadRoundTrips() {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathComponent("config.json")
+        var config = AppConfig()
+        config.launcher.hotkey = "cmd shift r"
+        config.nudges = [NudgeConfig(name: "Tea", enabled: false, everyMinutes: 30, message: "Tea?")]
+        config.calendar.calendars = ["Work"]
+        ConfigStore.save(config, to: url)
+        XCTAssertEqual(ConfigStore.load(from: url), config)
+    }
+
+    /// Opening Settings loads the config; a typo must not cost the user their file.
+    func testLoadLeavesABrokenFileAlone() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let url = dir.appendingPathComponent("config.json")
+        try Data(#"{ "launcher": { "hotkey": "cmd k" "#.utf8).write(to: url)
+        XCTAssertEqual(ConfigStore.load(from: url), AppConfig())
+        XCTAssertEqual(try String(contentsOf: url), #"{ "launcher": { "hotkey": "cmd k" "#)
+    }
+
     func testEmptyJSONGivesDefaults() throws {
         let config = try decode("{}")
         XCTAssertTrue(config.calendar.enabled)

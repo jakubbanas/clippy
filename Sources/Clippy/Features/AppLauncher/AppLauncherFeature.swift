@@ -4,8 +4,8 @@ import AppKit
 /// launcher queries from that in-memory cache — `searchItems` runs on every
 /// keystroke, so it must never touch disk.
 ///
-/// Installing an app mid-session needs "Reload Config" (which calls `stop()`
-/// then `start(context:)`). A filesystem watcher is not worth it here.
+/// Installing an app mid-session needs a reload (`stop()` then
+/// `start(context:)`): change a setting in the Settings window, or relaunch. A filesystem watcher is not worth it here.
 final class AppLauncherFeature: Feature {
     let id = "appLauncher"
     let name = "App Launcher"

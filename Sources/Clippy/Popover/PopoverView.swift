@@ -121,10 +121,6 @@ private struct ControlsTab: View {
                     .toggleStyle(.switch)
                     .labelsHidden()
             }
-            Divider()
-            ControlRow(title: "Reload Config", symbol: "arrow.clockwise") {
-                Button("Reload", action: model.onReloadConfig)
-            }
         }
         .padding(.horizontal, 12)
     }

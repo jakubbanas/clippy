@@ -2,7 +2,7 @@ import Foundation
 
 /// App configuration, persisted as JSON in Application Support.
 /// Missing keys fall back to defaults, so partial config files are fine.
-struct AppConfig: Codable {
+struct AppConfig: Codable, Equatable {
     var calendar: CalendarConfig
     var nudges: [NudgeConfig]
     var focus: FocusConfig
@@ -45,7 +45,7 @@ struct AppConfig: Codable {
     }
 }
 
-struct CalendarConfig: Codable {
+struct CalendarConfig: Codable, Equatable {
     var enabled: Bool
     /// Minutes before event start to announce; 0 = at start.
     var leadMinutes: [Double]
@@ -69,7 +69,7 @@ struct CalendarConfig: Codable {
 /// Silent background logging of active-vs-idle time and meeting overlap,
 /// one row per hour, to a monthly CSV. Off by default since it persists
 /// granular at-the-keyboard data continuously.
-struct ActivityLogConfig: Codable {
+struct ActivityLogConfig: Codable, Equatable {
     var enabled: Bool
     /// Idle seconds below which a poll counts as "active". Must be >= the
     /// feature's 15s poll interval, or continuous activity gets under-counted.
@@ -88,7 +88,7 @@ struct ActivityLogConfig: Codable {
 }
 
 /// "Welcome back" break tracking — reports how long you were away when you return.
-struct BreakTrackerConfig: Codable {
+struct BreakTrackerConfig: Codable, Equatable {
     var enabled: Bool
     /// Don't announce breaks shorter than this.
     var minBreakMinutes: Double
@@ -106,7 +106,7 @@ struct BreakTrackerConfig: Codable {
 }
 
 /// The single hotkey that opens the command launcher menu.
-struct LauncherConfig: Codable {
+struct LauncherConfig: Codable, Equatable {
     var hotkey: String
 
     init(hotkey: String = "⌥Space") {
@@ -124,7 +124,7 @@ struct LauncherConfig: Codable {
 /// history that dies on restart is not useful. Password managers mark their
 /// pasteboard writes as concealed and are skipped; a secret you typed and copied
 /// by hand is not. Set `enabled: false` to turn it off entirely.
-struct ClipboardConfig: Codable {
+struct ClipboardConfig: Codable, Equatable {
     var enabled: Bool
     /// Oldest clips beyond this are dropped on every write.
     var maxItems: Int
@@ -142,7 +142,7 @@ struct ClipboardConfig: Codable {
 }
 
 /// Fuzzy app launching in the command launcher.
-struct AppLauncherConfig: Codable {
+struct AppLauncherConfig: Codable, Equatable {
     var enabled: Bool
 
     init(enabled: Bool = true) {
@@ -186,7 +186,7 @@ struct NudgeConfig: Codable, Equatable {
 
 /// A body-doubling focus session: declare a goal, work a timed block, get a
 /// check-out prompt at the end.
-struct FocusConfig: Codable {
+struct FocusConfig: Codable, Equatable {
     var enabled: Bool
     /// Pre-filled block length in the start panel.
     var defaultMinutes: Double
@@ -213,9 +213,10 @@ enum ConfigStore {
             .appendingPathComponent("com.jbanas.clippy/config.json")
     }
 
-    /// Loads config, writing a default file on first run so the user has
-    /// something to edit via the tray's "Open Config" item.
-    static func load() -> AppConfig {
+    /// Loads config, writing a default file on first run. A file that exists
+    /// but fails to decode gets defaults in memory and is left on disk, so a
+    /// hand-edit typo never costs the user their settings.
+    static func load(from url: URL = ConfigStore.url) -> AppConfig {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         if let data = try? Data(contentsOf: url),
@@ -223,11 +224,13 @@ enum ConfigStore {
             return config
         }
         let config = AppConfig()
-        save(config)
+        if !FileManager.default.fileExists(atPath: url.path) {
+            save(config, to: url)
+        }
         return config
     }
 
-    private static func save(_ config: AppConfig) {
+    static func save(_ config: AppConfig, to url: URL = ConfigStore.url) {
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
