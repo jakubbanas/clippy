@@ -39,6 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func startFeatures() {
         let config = ConfigStore.load()
         runningConfig = config
+        presenter.browser = config.browser
         let context = FeatureContext(announcer: announcer, config: config)
         for feature in features {
             feature.start(context: context)
@@ -111,12 +112,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let model = SettingsModel(
             config: ConfigStore.load(),
             availableCalendars: EventKitClient().calendarTitles(),
+            availableBrowsers: Self.installedBrowsers(),
             save: { ConfigStore.save($0) }
         )
         let window = SettingsWindow(model: model)
         window.onClose = { [weak self] in self?.settingsClosed() }
         settingsWindow = window
         window.show()
+    }
+
+    /// Apps registered to open https links, sorted by name.
+    private static func installedBrowsers() -> [SettingsModel.Browser] {
+        NSWorkspace.shared.urlsForApplications(toOpen: URL(string: "https://example.com")!)
+            .compactMap { url in
+                Bundle(url: url)?.bundleIdentifier.map {
+                    SettingsModel.Browser(id: $0, name: FileManager.default.displayName(atPath: url.path))
+                }
+            }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
     /// One reload on close, and only when something changed: a reload restarts

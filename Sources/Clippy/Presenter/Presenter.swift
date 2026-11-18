@@ -7,6 +7,8 @@ final class Presenter {
     private var queue: [Announcement] = []
     private var current: Announcement?
     private var timeoutWork: DispatchWorkItem?
+    /// Bundle ID for opening web links; nil = system default. Set from config.
+    var browser: String?
 
     init(window: ClippyWindow) {
         self.window = window
@@ -54,7 +56,15 @@ final class Presenter {
     private func handle(_ kind: AnnouncementAction.Kind) {
         switch kind {
         case .openURL(let url):
-            NSWorkspace.shared.open(url)
+            // Web links (meeting "Join") go to the chosen browser; other schemes (e.g. System Settings),
+            // no choice, or an uninstalled browser use the system default handler.
+            if url.scheme?.hasPrefix("http") == true,
+               let browser,
+               let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: browser) {
+                NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
+            } else {
+                NSWorkspace.shared.open(url)
+            }
         case .dismiss:
             break
         case .snooze(let interval):

@@ -11,6 +11,8 @@ struct AppConfig: Codable, Equatable {
     var activityLog: ActivityLogConfig
     var appLauncher: AppLauncherConfig
     var clipboard: ClipboardConfig
+    /// Bundle ID of the browser for web links (meeting "Join"); nil = system default.
+    var browser: String?
 
     init(
         calendar: CalendarConfig = CalendarConfig(),
@@ -20,7 +22,8 @@ struct AppConfig: Codable, Equatable {
         launcher: LauncherConfig = LauncherConfig(),
         activityLog: ActivityLogConfig = ActivityLogConfig(),
         appLauncher: AppLauncherConfig = AppLauncherConfig(),
-        clipboard: ClipboardConfig = ClipboardConfig()
+        clipboard: ClipboardConfig = ClipboardConfig(),
+        browser: String? = nil
     ) {
         self.calendar = calendar
         self.nudges = nudges
@@ -30,6 +33,7 @@ struct AppConfig: Codable, Equatable {
         self.activityLog = activityLog
         self.appLauncher = appLauncher
         self.clipboard = clipboard
+        self.browser = browser
     }
 
     init(from decoder: Decoder) throws {
@@ -42,6 +46,7 @@ struct AppConfig: Codable, Equatable {
         activityLog = try container.decodeIfPresent(ActivityLogConfig.self, forKey: .activityLog) ?? ActivityLogConfig()
         appLauncher = try container.decodeIfPresent(AppLauncherConfig.self, forKey: .appLauncher) ?? AppLauncherConfig()
         clipboard = try container.decodeIfPresent(ClipboardConfig.self, forKey: .clipboard) ?? ClipboardConfig()
+        browser = try container.decodeIfPresent(String.self, forKey: .browser)
     }
 }
 

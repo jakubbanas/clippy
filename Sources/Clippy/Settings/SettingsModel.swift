@@ -14,6 +14,13 @@ final class SettingsModel {
     }
     /// Sorted calendar titles; empty when calendar access is missing.
     let availableCalendars: [String]
+    /// Apps that can open web links, offered for `config.browser`.
+    let availableBrowsers: [Browser]
+
+    struct Browser: Hashable, Identifiable {
+        let id: String  // bundle ID
+        let name: String
+    }
 
     var leadMinutesText: String {
         didSet {
@@ -56,9 +63,10 @@ final class SettingsModel {
 
     @ObservationIgnored private let save: (AppConfig) -> Void
 
-    init(config: AppConfig, availableCalendars: [String], save: @escaping (AppConfig) -> Void) {
+    init(config: AppConfig, availableCalendars: [String], availableBrowsers: [Browser] = [], save: @escaping (AppConfig) -> Void) {
         self.config = config
         self.availableCalendars = availableCalendars
+        self.availableBrowsers = availableBrowsers
         self.save = save
         leadMinutesText = config.calendar.leadMinutes
             .map { String(format: "%g", $0) }

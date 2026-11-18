@@ -35,6 +35,12 @@ struct SettingsView: View {
             Toggle("Remind me about meetings", isOn: $model.config.calendar.enabled)
             TextField("Remind me before (minutes)", text: $model.leadMinutesText)
             ErrorText(model.leadMinutesError)
+            Picker("Open meeting links in", selection: $model.config.browser) {
+                Text("System default").tag(String?.none)
+                ForEach(model.availableBrowsers) { browser in
+                    Text(browser.name).tag(String?.some(browser.id))
+                }
+            }
         }
         Section("Calendars") {
             if model.availableCalendars.isEmpty {

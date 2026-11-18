@@ -23,6 +23,7 @@ final class ConfigTests: XCTestCase {
         config.launcher.hotkey = "cmd shift r"
         config.nudges = [NudgeConfig(name: "Tea", enabled: false, everyMinutes: 30, message: "Tea?")]
         config.calendar.calendars = ["Work"]
+        config.browser = "com.google.Chrome"
         ConfigStore.save(config, to: url)
         XCTAssertEqual(ConfigStore.load(from: url), config)
     }
@@ -42,6 +43,7 @@ final class ConfigTests: XCTestCase {
         XCTAssertTrue(config.calendar.enabled)
         XCTAssertEqual(config.calendar.leadMinutes, [1, 0])
         XCTAssertNil(config.calendar.calendars)
+        XCTAssertNil(config.browser)
     }
 
     func testPartialCalendarConfigKeepsOtherDefaults() throws {
