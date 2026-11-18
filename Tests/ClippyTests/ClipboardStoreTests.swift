@@ -59,6 +59,36 @@ final class ClipboardStoreTests: XCTestCase {
         XCTAssertEqual(clips.map(\.text), ["clip 5", "clip 4", "clip 3"])
     }
 
+    // MARK: - pins
+
+    func testPinPrependsNewestFirst() {
+        let pins = ClipboardStore.pin([clip("old", at: 1)], clip: clip("new", at: 2))
+        XCTAssertEqual(pins.map(\.text), ["new", "old"])
+    }
+
+    func testPinDeduplicatesByTextAndMovesToTop() {
+        let pins = ClipboardStore.pin([clip("b", at: 2), clip("a", at: 1)], clip: clip("a", at: 3))
+        XCTAssertEqual(pins.map(\.text), ["a", "b"])
+    }
+
+    func testUnpinRemovesOnlyThatText() {
+        let pins = ClipboardStore.unpin([clip("a"), clip("b", at: 1)], text: "a")
+        XCTAssertEqual(pins.map(\.text), ["b"])
+    }
+
+    func testUnpinnedHistoryHidesPinnedTexts() {
+        let history = [clip("c", at: 3), clip("b", at: 2), clip("a", at: 1)]
+        let visible = ClipboardStore.unpinnedHistory(history, pins: [clip("b", at: 9)])
+        XCTAssertEqual(visible.map(\.text), ["c", "a"])
+    }
+
+    func testPinnedURLSitsNextToHistory() {
+        XCTAssertEqual(ClipboardStore.pinnedURL.lastPathComponent, "pinned.jsonl")
+        XCTAssertEqual(
+            ClipboardStore.pinnedURL.deletingLastPathComponent(), ClipboardStore.url.deletingLastPathComponent()
+        )
+    }
+
     // MARK: - disk
 
     func testSaveThenLoadRoundTrips() {

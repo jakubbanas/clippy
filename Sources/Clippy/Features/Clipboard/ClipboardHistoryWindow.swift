@@ -33,15 +33,19 @@ final class ClipboardHistoryWindow: NSObject, NSTableViewDelegate, NSTableViewDa
     private let table = NSTableView()
     private let preview = NSTextView()
     private let footer = NSTextField(labelWithString: "")
+    /// Pins first, then history; rows below `pinnedCount` are pins.
     private var clips: [Clip] = []
+    private var pinnedCount = 0
     private var keyMonitor: Any?
     /// Whoever was frontmost when we opened, so ⌘V after a pick lands there.
     private var previousApp: NSRunningApplication?
 
-    /// The full history, newest first. Called on open and after every delete.
-    var onLoad: (() -> [Clip])?
+    /// Pins and the history to show under them (already-pinned texts removed),
+    /// each newest first. Called on open and after every delete or pin toggle.
+    var onLoad: (() -> (pins: [Clip], history: [Clip]))?
     var onPick: ((Clip) -> Void)?
     var onDelete: ((Clip) -> Void)?
+    var onTogglePin: ((Clip) -> Void)?
 
     override init() {
         panel = Panel(
@@ -123,7 +127,7 @@ final class ClipboardHistoryWindow: NSObject, NSTableViewDelegate, NSTableViewDa
         footer.lineBreakMode = .byTruncatingTail
         footer.translatesAutoresizingMaskIntoConstraints = false
 
-        let hint = NSTextField(labelWithString: "↵ copy   ⌘⌫ delete   esc close")
+        let hint = NSTextField(labelWithString: "↵ copy   ⌘P pin   ⌘⌫ delete   esc close")
         hint.font = .systemFont(ofSize: 11)
         hint.textColor = .tertiaryLabelColor
         hint.alignment = .right
@@ -240,6 +244,12 @@ final class ClipboardHistoryWindow: NSObject, NSTableViewDelegate, NSTableViewDa
             deleteSelected()
             return nil
         }
+        if event.keyCode == 35, event.modifierFlags.contains(.command) { // ⌘P
+            // Repeats are swallowed, not toggled: holding ⌘P would flip the pin
+            // on every repeat and rewrite pinned.jsonl each time.
+            if !event.isARepeat { togglePinSelected() }
+            return nil
+        }
         switch event.keyCode {
         case 53: // Escape
             close()
@@ -280,6 +290,22 @@ final class ClipboardHistoryWindow: NSObject, NSTableViewDelegate, NSTableViewDa
         reload(selecting: row)
     }
 
+    private func togglePinSelected() {
+        guard clips.indices.contains(table.selectedRow) else { return }
+        let row = table.selectedRow
+        let text = clips[row].text
+        onTogglePin?(clips[row])
+        // Unlike delete, a toggle moves the clip (to the top, or back into
+        // history), so the cursor follows the clip rather than holding its index.
+        reload(selecting: row)
+        let target = Self.row(of: text, in: clips, fallback: row)
+        if target != row { reload(selecting: target) }
+    }
+
+    static func row(of text: String, in clips: [Clip], fallback: Int) -> Int {
+        clips.firstIndex { $0.text == text } ?? fallback
+    }
+
     @objc private func rowDoubleClicked() {
         pickSelected()
     }
@@ -293,7 +319,10 @@ final class ClipboardHistoryWindow: NSObject, NSTableViewDelegate, NSTableViewDa
     /// Re-filters and re-renders, landing the selection on `row` — or on the
     /// last row if the list has shrunk past it.
     private func reload(selecting row: Int) {
-        clips = ClipboardSearch.filter(onLoad?() ?? [], query: field.stringValue)
+        let loaded = onLoad?() ?? (pins: [], history: [])
+        let pins = ClipboardSearch.filter(loaded.pins, query: field.stringValue)
+        clips = pins + ClipboardSearch.filter(loaded.history, query: field.stringValue)
+        pinnedCount = pins.count
         table.reloadData()
         let target = min(max(row, 0), clips.count - 1)
         guard clips.indices.contains(target) else {
@@ -338,7 +367,8 @@ final class ClipboardHistoryWindow: NSObject, NSTableViewDelegate, NSTableViewDa
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard clips.indices.contains(row) else { return NSView() }
-        let label = NSTextField(labelWithString: ClipboardFeature.rowTitle(for: clips[row].text, maxLength: 44))
+        let title = ClipboardFeature.rowTitle(for: clips[row].text, maxLength: 44)
+        let label = NSTextField(labelWithString: row < pinnedCount ? "📌 " + title : title)
         label.font = .systemFont(ofSize: 13)
         label.lineBreakMode = .byTruncatingTail
         label.translatesAutoresizingMaskIntoConstraints = false

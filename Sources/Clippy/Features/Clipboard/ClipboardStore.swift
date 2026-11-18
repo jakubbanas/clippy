@@ -38,6 +38,27 @@ enum ClipboardStore {
         return clips
     }
 
+    /// Pins live in their own file, written only on pin/unpin, so trimming and
+    /// the per-copy rewrite of `url` can never touch them.
+    static var pinnedURL: URL {
+        url.deletingLastPathComponent().appendingPathComponent("pinned.jsonl")
+    }
+
+    /// Prepends `clip`, dropping any existing pin with the same text. No limit.
+    static func pin(_ pins: [Clip], clip: Clip) -> [Clip] {
+        [clip] + unpin(pins, text: clip.text)
+    }
+
+    static func unpin(_ pins: [Clip], text: String) -> [Clip] {
+        pins.filter { $0.text != text }
+    }
+
+    /// History without the texts already shown as pins, so each text appears once.
+    static func unpinnedHistory(_ history: [Clip], pins: [Clip]) -> [Clip] {
+        let pinned = Set(pins.map(\.text))
+        return history.filter { !pinned.contains($0.text) }
+    }
+
     static func serialize(_ clips: [Clip]) -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys] // never .prettyPrinted — one line per clip

@@ -14,6 +14,7 @@ final class ClipboardFeature: Feature {
 
     private var task: Task<Void, Never>?
     private var clips: [Clip] = []
+    private var pins: [Clip] = []
     private var maxItems = 500
     private var enabled = false
     /// Built on first use, not in `start` — the window is AppKit-heavy and most
@@ -27,6 +28,7 @@ final class ClipboardFeature: Feature {
         guard enabled else { return }
 
         clips = ClipboardStore.load(from: ClipboardStore.url)
+        pins = ClipboardStore.load(from: ClipboardStore.pinnedURL)
         task = Task { [weak self] in
             var lastChangeCount = await MainActor.run { NSPasteboard.general.changeCount }
             while !Task.isCancelled {
@@ -45,6 +47,7 @@ final class ClipboardFeature: Feature {
         task = nil
         historyWindow?.close()
         clips = []
+        pins = []
         enabled = false
     }
 
@@ -89,7 +92,10 @@ final class ClipboardFeature: Feature {
     private func openHistory() {
         if historyWindow == nil {
             let window = ClipboardHistoryWindow()
-            window.onLoad = { [weak self] in self?.clips ?? [] }
+            window.onLoad = { [weak self] in
+                guard let self else { return ([], []) }
+                return (self.pins, ClipboardStore.unpinnedHistory(self.clips, pins: self.pins))
+            }
             window.onPick = { clip in
                 // Copy only — no synthetic ⌘V, which would need Accessibility.
                 // The window restores the previous app so the user's own ⌘V
@@ -98,6 +104,7 @@ final class ClipboardFeature: Feature {
                 NSPasteboard.general.setString(clip.text, forType: .string)
             }
             window.onDelete = { [weak self] clip in self?.delete(clip) }
+            window.onTogglePin = { [weak self] clip in self?.togglePin(clip) }
             historyWindow = window
         }
         historyWindow?.show()
@@ -118,11 +125,22 @@ final class ClipboardFeature: Feature {
         ClipboardStore.save(clips, to: ClipboardStore.url)
     }
 
-    /// `copiedAt` is the clip's identity: `record` keeps one entry per distinct
-    /// text, and every capture stamps a fresh timestamp.
+    /// Text is the clip's identity: `record` and `pin` each keep one entry per
+    /// distinct text. Deleting removes the text from history and pins alike.
     private func delete(_ clip: Clip) {
-        clips.removeAll { $0.copiedAt == clip.copiedAt }
+        clips.removeAll { $0.text == clip.text }
         ClipboardStore.save(clips, to: ClipboardStore.url)
+        if pins.contains(where: { $0.text == clip.text }) {
+            pins = ClipboardStore.unpin(pins, text: clip.text)
+            ClipboardStore.save(pins, to: ClipboardStore.pinnedURL)
+        }
+    }
+
+    private func togglePin(_ clip: Clip) {
+        pins = pins.contains(where: { $0.text == clip.text })
+            ? ClipboardStore.unpin(pins, text: clip.text)
+            : ClipboardStore.pin(pins, clip: clip)
+        ClipboardStore.save(pins, to: ClipboardStore.pinnedURL)
     }
 
     static func relativeAge(from timestamp: Double, now: Date) -> String {
