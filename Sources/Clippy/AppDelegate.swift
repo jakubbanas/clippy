@@ -14,12 +14,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// can tell whether anything changed.
     private var runningConfig = AppConfig()
     private var settingsWindow: SettingsWindow?
+    /// Every animation in the sprite data, so Test Clippy can step through them all.
+    private var animationNames: [String] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
             let assets = try ClippyAssets.load()
             let window = ClippyWindow(agent: assets.data, sheet: assets.sheet)
             presenter = Presenter(window: window)
+            animationNames = assets.data.animations.keys.sorted()
         } catch {
             NSLog("Failed to load Clippy assets: \(error)")
             NSApp.terminate(nil)
@@ -159,16 +162,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return service.status == .enabled
     }
 
-    private func testClippy() {
+    /// Shows a sample meeting reminder playing animation `index`; "Next" re-announces with the following one.
+    private func testClippy(index: Int = 0) {
+        let i = index % animationNames.count
         announcer.announce(Announcement(
             id: "test:\(Date().timeIntervalSince1970)",
             featureID: "test",
-            animation: "Wave",
+            animation: animationNames[i],
             title: "It looks like you have a meeting!",
-            body: ["10:00 – 10:30", "Standup"],
+            body: ["10:00 – 10:30", "Standup", "Animation \(i + 1)/\(animationNames.count): \(animationNames[i])"],
             actions: [
                 AnnouncementAction(label: "Join", kind: .openURL(URL(string: "https://example.com")!)),
                 AnnouncementAction(label: "Snooze 5 min", kind: .snooze(300)),
+                AnnouncementAction(label: "Next", kind: .callback { [weak self] in self?.testClippy(index: index + 1) }),
                 AnnouncementAction(label: "Dismiss", kind: .dismiss),
             ],
             timeout: 20
