@@ -129,11 +129,10 @@ struct SettingsView: View {
     @ViewBuilder private var clipboard: some View {
         Section {
             Toggle("Clipboard history", isOn: $model.config.clipboard.enabled)
-            // A Stepper, not TextField(value:): that commits only on Return or
-            // focus loss, so closing the window could drop the typed value.
-            Stepper(value: $model.config.clipboard.maxItems, in: 1...5000, step: 50) {
-                Text("Clips to keep: \(model.config.clipboard.maxItems)")
-            }
+            // A String draft, not TextField(value:): that commits only on Return
+            // or focus loss, so closing the window could drop the typed value.
+            TextField("Clips to keep", text: $model.maxClipsText)
+            ErrorText(model.maxClipsError)
         }
     }
 

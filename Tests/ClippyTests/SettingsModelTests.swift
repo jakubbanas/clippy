@@ -84,6 +84,32 @@ final class SettingsModelTests: XCTestCase {
         XCTAssertEqual(saves.all.last?.launcher.hotkey, "⌥Space")
     }
 
+    // MARK: Clips to keep
+
+    func testValidMaxClipsSaves() {
+        let (model, saves) = makeModel()
+        XCTAssertEqual(model.maxClipsText, "500")
+        model.maxClipsText = " 4000 "
+        XCTAssertEqual(saves.all.last?.clipboard.maxItems, 4000)
+        XCTAssertNil(model.maxClipsError)
+    }
+
+    func testMaxClipsRejectsBadInput() {
+        for bad in ["", "abc", "0", "-5", "12.5", "5001"] {
+            XCTAssertNil(SettingsValidation.parseMaxClips(bad), bad)
+        }
+    }
+
+    /// Retyping "4000" over "500" can pass through "4"; leaving the field
+    /// invalid must not keep that value, or the next copy trims history to 4.
+    func testInvalidMaxClipsRestoresTheOriginal() {
+        let (model, _) = makeModel()
+        model.maxClipsText = "4"
+        model.maxClipsText = ""
+        XCTAssertEqual(model.config.clipboard.maxItems, 500)
+        XCTAssertEqual(model.maxClipsError, "Use a whole number from 1 to 5000.")
+    }
+
     // MARK: Nudges
 
     func testDuplicateNudgeNameIsNotSaved() {

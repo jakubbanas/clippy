@@ -49,6 +49,21 @@ final class SettingsModel {
     }
     @ObservationIgnored private let originalHotkey: String
 
+    /// Same fallback as `hotkeyText`: retyping "4000" passes through "4", and
+    /// an invalid final text must not leave the next copy trimming history to 4.
+    var maxClipsText: String {
+        didSet {
+            if let count = SettingsValidation.parseMaxClips(maxClipsText) {
+                maxClipsError = nil
+                config.clipboard.maxItems = count
+            } else {
+                maxClipsError = "Use a whole number from 1 to 5000."
+                if config.clipboard.maxItems != originalMaxClips { config.clipboard.maxItems = originalMaxClips }
+            }
+        }
+    }
+    @ObservationIgnored private let originalMaxClips: Int
+
     var nudges: [NudgeConfig] {
         didSet {
             nudgesError = SettingsValidation.nudgesError(nudges)
@@ -58,6 +73,7 @@ final class SettingsModel {
 
     private(set) var leadMinutesError: String?
     private(set) var hotkeyError: String?
+    private(set) var maxClipsError: String?
     private(set) var nudgesError: String?
     private(set) var calendarsError: String?
 
@@ -73,6 +89,8 @@ final class SettingsModel {
             .joined(separator: ", ")
         hotkeyText = config.launcher.hotkey
         originalHotkey = config.launcher.hotkey
+        maxClipsText = String(config.clipboard.maxItems)
+        originalMaxClips = config.clipboard.maxItems
         nudges = config.nudges
     }
 
@@ -103,6 +121,12 @@ enum SettingsValidation {
         let values = pieces.compactMap(Double.init)
         guard !values.isEmpty, values.count == pieces.count, values.allSatisfy({ $0 >= 0 }) else { return nil }
         return values
+    }
+
+    /// A whole number in 1...5000, surrounding spaces ignored.
+    static func parseMaxClips(_ text: String) -> Int? {
+        guard let count = Int(text.trimmingCharacters(in: .whitespaces)), (1...5000).contains(count) else { return nil }
+        return count
     }
 
     /// Names must be non-empty and unique: `NudgesFeature` keys its timers by
